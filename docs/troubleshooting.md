@@ -57,13 +57,23 @@ pkg install -y php curl unzip
 
 ```bash
 apt update
-apt full-upgrade -y
+apt -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
 pkg install -y php curl unzip
 php -v
 ```
 
 ถ้า `php -v` ยังพัง ให้ปิด/เปิด Termux แล้วรัน `bash scripts/setup.sh` อีกครั้ง
 สคริปต์ setup ตรวจและซ่อมกรณีนี้ให้อัตโนมัติ
+
+### `apt` ค้างที่ `Configuration file ... openssl.cnf`
+
+`DEBIAN_FRONTEND=noninteractive` อย่างเดียวไม่พอ ถ้ามีคำถาม conffile ให้บังคับใช้ค่าเดิม:
+
+```bash
+apt -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
+```
+
+หรือปล่อยให้ `bash scripts/setup.sh` จัดการ (รุ่นนี้ใส่ option นี้ให้แล้ว)
 
 ### ติดตั้ง Termux จาก Play Store ไว้
 
@@ -449,30 +459,31 @@ curl -s http://127.0.0.1:8080/healthz
 ### หลังรีบูตเว็บไม่ขึ้น
 
 1. ตรวจว่าติดตั้ง Termux:Boot จาก F-Droid และเปิดแอปอย่างน้อยหนึ่งครั้ง
-2. ตรวจว่าไฟล์ boot ถูกสร้าง:
+2. รอ 1–3 นาทีหลังบูต เพราะ Termux:Boot ใช้ JobScheduler และ Android/HyperOS อาจหน่วง
+3. ตรวจว่าไฟล์ boot ถูกสร้าง:
 
 ```bash
 ls -l ~/.termux/boot/php-server.sh
 cat ~/.php-server/boot.log
 ```
 
-3. ตรวจ battery optimization ของ Termux และเปิด **Autostart**
+4. ตรวจ battery optimization ของ Termux และเปิด **Autostart**
    (Xiaomi/HyperOS: Settings → Apps → Termux → Autostart; OPPO/vivo มีเมนูคล้ายกัน)
-4. ล็อก Termux ไว้ใน recent apps และอนุญาต **Background activity**
-5. เปิด Termux เองแล้วดูว่าเซิร์ฟเวอร์ขึ้นหรือไม่:
+5. ล็อก Termux ไว้ใน recent apps และอนุญาต **Background activity**
+6. เปิด Termux เองแล้วดูว่าเซิร์ฟเวอร์ขึ้นหรือไม่:
 
 ```bash
 bash scripts/server.sh status
 ```
 
-6. Android บางรุ่นต้องปิด **Phantom process killer** หรืออนุญาต background execution
+7. Android บางรุ่นต้องปิด **Phantom process killer** หรืออนุญาต background execution
    (ขึ้นกับผู้ผลิต)
 
 ถ้า `boot.log` ว่างหรือขึ้น `php ทำงานไม่ได้` ให้ตรวจว่า PHP ยังเรียกได้:
 
 ```bash
 php -v
-apt update && apt full-upgrade -y
+bash scripts/setup.sh
 ```
 
 ### `env: 'bash': No such file or directory` ใน `boot.log`

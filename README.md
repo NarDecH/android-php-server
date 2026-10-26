@@ -362,7 +362,7 @@ android-php-server/
 | อาการ | สาเหตุ/วิธีแก้ |
 |---|---|
 | `php: command not found` | รัน `bash scripts/setup.sh` หรือ `pkg install php` |
-| `CANNOT LINK EXECUTABLE "php"` | แพ็กเกจ Termux คนละรุ่น → `apt update && apt full-upgrade -y` |
+| `CANNOT LINK EXECUTABLE "php"` | แพ็กเกจ Termux คนละรุ่น → รัน `bash scripts/setup.sh` (ซ่อมด้วย `apt` ให้อัตโนมัติ) |
 | `Address already in use` | พอร์ต 8080 ถูกใช้อยู่ → เปลี่ยน `PORT` ใน config แล้ว restart |
 | เปิด localhost ไม่ได้ | `bash scripts/server.sh status` และ `logs`; ตรวจว่าได้ `start` แล้ว |
 | อัปโหลดไฟล์ใหญ่ไม่ได้ | เพิ่ม `MAX_UPLOAD_MB` แล้ว restart (ค่าเริ่มต้น 64 MB) |
@@ -420,14 +420,19 @@ PHP 8.5.12) แล้ว:
 - นำเข้าไฟล์เดี่ยวและ ZIP ด้วย `import.sh` แล้วเปิดผ่าน HTTP
 - PIN: redirect เมื่อยังไม่ล็อกอิน, ใส่ PIN, cookie และ logout
 - `start` / `stop` / `restart` / `status` และตรวจว่าไม่มี worker หรือพอร์ตค้างหลัง stop
+- `setup.sh` ซ่อม PHP/libcurl ที่ link ไม่ได้ และไม่ค้างที่คำถาม `openssl.cnf` (force-confold)
 - boot script ด้วย environment แบบน้อยที่สุด (`PATH=/system/bin`) และ shebang แบบ path เต็ม
+- **autostart หลังรีบูตจริง** ด้วย Termux:Boot 0.8.1: `boot.log` มี attempt และ `/healthz` ตอบ 200
+- `server.sh status` จาก process ของ Termux รายงานกำลังทำงาน และอ่าน `~/storage/downloads` ได้
 - กัน path traversal, ไฟล์ซ่อน, `_lib.php` และ directory listing
 
-ข้อจำกัดของการทดสอบ: HyperOS บล็อก `adb input` และ `pm grant` จึงรันคำสั่งใน Termux
-ผ่าน `run-as` ทำให้โปรเซสอยู่ใน SELinux domain `runas_app` ซึ่งอ่าน `/sdcard` ไม่ได้
-แม้แอปจะได้ `MANAGE_EXTERNAL_STORAGE` และ READ/WRITE_EXTERNAL_STORAGE แล้วก็ตาม
-ดังนั้น flow `termux-setup-storage` + นำเข้าจาก Downloads จริง และการทำงานของ Termux:Boot
-หลังรีบูต ยังต้องทดสอบด้วยมือบนหน้าจอ Termux (ตัว `import.sh` ทดสอบด้วยไฟล์และ ZIP ใน home แล้ว)
+ข้อจำกัดของการทดสอบ: HyperOS บล็อก `adb input` และ `pm grant` จึงรันคำสั่งผ่าน `run-as`
+และให้สิทธิ์ storage ผ่าน `adb shell appops` สำหรับการทดสอบเท่านั้น ผู้ใช้จริงยังต้องกด
+Allow ในหน้าจอ Termux หรือรัน `termux-setup-storage` ตามคู่มือ
+
+หมายเหตุ: เครื่องทดสอบใช้ Termux 0.118.3 debug build ที่ลงนามคีย์เดียวกับ Termux:Boot
+0.8.1 (F-Droid) เพื่อให้ `run-as` เตรียมข้อมูลได้; receiver/service ที่ทดสอบเป็นของจริง
+และใช้ shared UID เดียวกัน
 
 ตรวจ syntax PHP ด้วย `php -l` ทุกไฟล์; หาก PHP ใน Termux ต่างรุ่น สามารถตรวจซ้ำได้ด้วย
 `php -l www/index.php`

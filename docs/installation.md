@@ -54,7 +54,7 @@ pkg upgrade -y
 >
 > ```bash
 > apt update
-> apt full-upgrade -y
+> apt -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
 > ```
 >
 > `scripts/setup.sh` ตรวจและซ่อมกรณีนี้ให้อัตโนมัติด้วย
@@ -225,8 +225,11 @@ bash scripts/install-boot.sh
 ```
 
 สคริปต์จะสร้าง `~/.termux/boot/php-server.sh` ซึ่งเรียก `server.sh start`
-หลังเครื่องบูตประมาณ 8 วินาที และลองใหม่สูงสุด 3 ครั้ง (ห่างกัน 10 วินาที)
+หลังได้รับ `BOOT_COMPLETED` ประมาณ 8 วินาที และลองใหม่สูงสุด 3 ครั้ง (ห่างกัน 10 วินาที)
 ถ้าเครื่องบูตช้า
+
+Termux:Boot ใช้ JobScheduler ของ Android จึงอาจได้รับ event ช้า 1–3 นาทีหลังรีบูต
+ถ้าเพิ่งบูตเสร็จแล้วยังไม่เห็น `boot.log` ให้รออย่างน้อย 2 นาทีก่อนสรุปว่าล้มเหลว
 
 ทดสอบทันทีโดยไม่ต้องรีบูต:
 
@@ -235,7 +238,7 @@ bash ~/.termux/boot/php-server.sh
 cat ~/.php-server/boot.log
 ```
 
-หลังรีบูต เครื่องอาจต้องใช้เวลา 10–30 วินาที กว่าจะเปิดเว็บได้
+หลังรีบูต เครื่องอาจต้องใช้เวลา 1–3 นาที กว่าจะเปิดเว็บได้ (ขึ้นกับ JobScheduler และ HyperOS)
 
 **เพิ่มโอกาสให้อยู่รอด:**
 

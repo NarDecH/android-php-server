@@ -17,6 +17,10 @@ php_works() {
     php -r 'echo PHP_VERSION;' >/dev/null 2>&1
 }
 
+# กัน apt/dpkg ค้างที่คำถาม conffile (เช่น openssl.cnf) ระหว่างซ่อมแพ็กเกจ
+DPKG_FORCE_OPTS=(--force-confdef --force-confold)
+APT_FORCE_OPTS=(-o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold")
+
 # Termux บางเครื่องมีแพ็กเกจค้างจากรอบก่อน ทำให้ php/curl link ไม่ได้
 # (เช่น CANNOT LINK EXECUTABLE "php": SSL_set_quic_tls_early_data_enabled)
 # apt full-upgrade จะซ่อม libcurl/OpenSSL ให้ตรงรุ่นกัน
@@ -27,17 +31,18 @@ termux_repair_packages() {
     fi
 
     apt update || return 1
-    DEBIAN_FRONTEND=noninteractive apt full-upgrade -y || return 1
+    DEBIAN_FRONTEND=noninteractive dpkg --configure -a "${DPKG_FORCE_OPTS[@]}" || true
+    DEBIAN_FRONTEND=noninteractive apt "${APT_FORCE_OPTS[@]}" full-upgrade -y || return 1
 }
 
 termux_install_packages() {
-    if pkg install -y php curl unzip; then
+    if DEBIAN_FRONTEND=noninteractive apt "${APT_FORCE_OPTS[@]}" install -y php curl unzip; then
         return 0
     fi
 
-    say "      pkg install ไม่สำเร็จ — ลองซ่อมแพ็กเกจก่อนติดตั้งใหม่"
+    say "      ติดตั้งแพ็กเกจไม่สำเร็จ — ลองซ่อมแพ็กเกจก่อนติดตั้งใหม่"
     termux_repair_packages || return 1
-    pkg install -y php curl unzip
+    DEBIAN_FRONTEND=noninteractive apt "${APT_FORCE_OPTS[@]}" install -y php curl unzip
 }
 
 if command -v pkg >/dev/null 2>&1 && [ -n "${PREFIX:-}" ] && [[ "${PREFIX}" == *"com.termux"* ]]; then
