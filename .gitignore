@@ -1,0 +1,14 @@
+# Runtime / local test tools
+.tools/
+.freebuff/
+*.log
+
+# User-imported files (keep the folder itself)
+www/files/*
+!www/files/.gitkeep
+
+# Editors & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
