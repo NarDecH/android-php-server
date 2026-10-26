@@ -181,7 +181,8 @@ import_source() {
     esac
 
     if [ ! -e "$source" ]; then
-        err "ไม่พบต้นทาง: $source"
+        err "ไม่พบหรืออ่านต้นทางไม่ได้: $source"
+        say "ตรวจ path และสิทธิ์เข้าถึงไฟล์ — ถ้าไฟล์อยู่ใน Downloads ให้รัน termux-setup-storage"
         return 1
     fi
 
@@ -213,6 +214,12 @@ import_source() {
 
     if ! mkdir -p "$dest"; then
         err "สร้างโฟลเดอร์ปลายทางไม่ได้: $dest"
+        return 1
+    fi
+
+    if [ ! -w "$dest" ]; then
+        err "เขียนโฟลเดอร์ปลายทางไม่ได้: $dest"
+        say "ตรวจสิทธิ์ของ www/files และโฟลเดอร์โปรเจกต์"
         return 1
     fi
 
@@ -262,6 +269,12 @@ interactive_select() {
     if [ ! -d "$downloads" ]; then
         err "ไม่พบโฟลเดอร์ Downloads"
         say "รัน 'termux-setup-storage' แล้วอนุญาตการเข้าถึงไฟล์ก่อน"
+        exit 1
+    fi
+
+    if [ ! -r "$downloads" ] || [ ! -x "$downloads" ]; then
+        err "อ่านโฟลเดอร์ Downloads ไม่ได้ (สิทธิ์ถูกปฏิเสธ)"
+        say "รัน 'termux-setup-storage' แล้วอนุญาต Files and media / All files access ให้ Termux"
         exit 1
     fi
 

@@ -362,6 +362,7 @@ android-php-server/
 | อาการ | สาเหตุ/วิธีแก้ |
 |---|---|
 | `php: command not found` | รัน `bash scripts/setup.sh` หรือ `pkg install php` |
+| `CANNOT LINK EXECUTABLE "php"` | แพ็กเกจ Termux คนละรุ่น → `apt update && apt full-upgrade -y` |
 | `Address already in use` | พอร์ต 8080 ถูกใช้อยู่ → เปลี่ยน `PORT` ใน config แล้ว restart |
 | เปิด localhost ไม่ได้ | `bash scripts/server.sh status` และ `logs`; ตรวจว่าได้ `start` แล้ว |
 | อัปโหลดไฟล์ใหญ่ไม่ได้ | เพิ่ม `MAX_UPLOAD_MB` แล้ว restart (ค่าเริ่มต้น 64 MB) |
@@ -412,10 +413,24 @@ Termux ใช้แพ็กเกจ PHP ที่ maintain อยู่แล�
 
 ## การทดสอบ
 
-โค้ด PHP ถูกตรวจด้วย `php -l` และทดสอบเซิร์ฟเวอร์จริง (dashboard, health check, อัปโหลด,
-ลบไฟล์, PIN, path traversal, directory listing) ด้วย PHP 8.3
-คำสั่ง Termux อ้างอิงการติดตั้งจาก F-Droid; หากเวอร์ชัน PHP ใน Termux ต่างจากที่ใช้พัฒนา
-สามารถตรวจไฟล์ด้วย `php -l www/index.php` ได้
+ทดสอบบนมือถือ Android จริง (Xiaomi 23113RKC6G, Android 16/HyperOS, Termux 0.118.3,
+PHP 8.5.12) แล้ว:
+
+- dashboard, health check, อัปโหลด/ลบไฟล์ และการ execute ไฟล์ PHP
+- นำเข้าไฟล์เดี่ยวและ ZIP ด้วย `import.sh` แล้วเปิดผ่าน HTTP
+- PIN: redirect เมื่อยังไม่ล็อกอิน, ใส่ PIN, cookie และ logout
+- `start` / `stop` / `restart` / `status` และตรวจว่าไม่มี worker หรือพอร์ตค้างหลัง stop
+- boot script ด้วย environment แบบน้อยที่สุด (`PATH=/system/bin`) และ shebang แบบ path เต็ม
+- กัน path traversal, ไฟล์ซ่อน, `_lib.php` และ directory listing
+
+ข้อจำกัดของการทดสอบ: HyperOS บล็อก `adb input` และ `pm grant` จึงรันคำสั่งใน Termux
+ผ่าน `run-as` ทำให้โปรเซสอยู่ใน SELinux domain `runas_app` ซึ่งอ่าน `/sdcard` ไม่ได้
+แม้แอปจะได้ `MANAGE_EXTERNAL_STORAGE` และ READ/WRITE_EXTERNAL_STORAGE แล้วก็ตาม
+ดังนั้น flow `termux-setup-storage` + นำเข้าจาก Downloads จริง และการทำงานของ Termux:Boot
+หลังรีบูต ยังต้องทดสอบด้วยมือบนหน้าจอ Termux (ตัว `import.sh` ทดสอบด้วยไฟล์และ ZIP ใน home แล้ว)
+
+ตรวจ syntax PHP ด้วย `php -l` ทุกไฟล์; หาก PHP ใน Termux ต่างรุ่น สามารถตรวจซ้ำได้ด้วย
+`php -l www/index.php`
 
 ---
 

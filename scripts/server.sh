@@ -91,10 +91,30 @@ require_php() {
         err "ไม่พบคำสั่ง php — รัน: bash scripts/setup.sh"
         return 1
     }
+
+    # ตรวจว่า PHP เรียกได้จริง ไม่ใช่แค่มีไฟล์ใน PATH
+    # (Termux ที่อัปเดตบางส่วนอาจมี libcurl/OpenSSL คนละรุ่น ทำให้ php link ไม่ได้)
+    if ! php -r 'echo PHP_VERSION;' >/dev/null 2>&1; then
+        err "php ทำงานไม่ได้ — แพ็กเกจ Termux อาจคนละเวอร์ชัน"
+        err "แก้ด้วย: apt update && apt full-upgrade -y"
+        err "หรือรัน: bash scripts/setup.sh"
+        return 1
+    fi
 }
 
 get_pid() {
     cat "$PID_FILE" 2>/dev/null || true
+}
+
+# Android ไม่มีไฟล์ .../task/<pid>/children จึงต้องหา worker จาก ppid แทน
+child_pids() {
+    local pid="$1"
+
+    if [ -r "/proc/$pid/task/$pid/children" ]; then
+        cat "/proc/$pid/task/$pid/children" 2>/dev/null || true
+    else
+        ps -A -o pid=,ppid= 2>/dev/null | awk -v parent="$pid" '$2 == parent { print $1 }'
+    fi
 }
 
 is_running() {
@@ -234,8 +254,13 @@ start_server() {
     say "--- log ล่าสุด ---"
     tail -n 25 "$LOG_FILE" 2>/dev/null || true
 
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    if [ -n "$pid" ]; then
+        local failed_children child
+        failed_children="$(child_pids "$pid")"
         kill "$pid" 2>/dev/null || true
+        for child in $failed_children; do
+            kill "$child" 2>/dev/null || true
+        done
     fi
     rm -f "$PID_FILE"
     exit 1
@@ -249,12 +274,9 @@ stop_server() {
         return 0
     fi
 
-    local pid children=""
+    local pid children
     pid="$(get_pid)"
-
-    if [ -r "/proc/$pid/task/$pid/children" ]; then
-        children="$(cat "/proc/$pid/task/$pid/children" 2>/dev/null || true)"
-    fi
+    children="$(child_pids "$pid")"
 
     say "กำลังหยุดเซิร์ฟเวอร์ (PID $pid)…"
     kill "$pid" 2>/dev/null || true

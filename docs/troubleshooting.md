@@ -48,6 +48,23 @@ pkg install -y php curl unzip
 ถ้ายังไม่พบ ให้ตรวจว่า repositories ของ Termux ยังชี้ไปที่ official mirror
 (โดยปกติ `pkg update` จะแก้ให้)
 
+### `CANNOT LINK EXECUTABLE "php": ... SSL_set_quic_tls_early_data_enabled`
+
+อาการนี้เกิดเมื่อ `pkg update` เปลี่ยน PHP เป็นรุ่นใหม่ แต่ `libcurl`/`openssl` ยังเป็นรุ่นเก่า
+และ `pkg upgrade` อาจพังต่อเพราะ `curl` เองก็ link ไม่ได้
+
+ให้ซ่อมด้วย `apt` โดยตรง (ไม่ผ่าน `curl`):
+
+```bash
+apt update
+apt full-upgrade -y
+pkg install -y php curl unzip
+php -v
+```
+
+ถ้า `php -v` ยังพัง ให้ปิด/เปิด Termux แล้วรัน `bash scripts/setup.sh` อีกครั้ง
+สคริปต์ setup ตรวจและซ่อมกรณีนี้ให้อัตโนมัติ
+
 ### ติดตั้ง Termux จาก Play Store ไว้
 
 Play Store version เลิกดูแลและอาจติดตั้งแพ็กเกจไม่ได้
@@ -56,8 +73,11 @@ Play Store version เลิกดูแลและอาจติดตั้�
 
 ### `termux-setup-storage` ไม่ขึ้นหน้าต่างขออนุญาต
 
-ไปที่ Settings → Apps → Termux → Permissions → Files and media → Allow
-แล้วรัน `termux-setup-storage` ใหม่
+1. ไปที่ Settings → Apps → Termux → Permissions → Files and media → Allow
+2. Android 11 ขึ้นไปบางรุ่นไม่มีตัวเลือกนี้ ให้ไปที่
+   Settings → Apps → Termux → Special app access → **All files access** → Allow
+3. กลับมาที่หน้าจอ Termux (ต้องเปิดแอปค้างไว้) แล้วรัน `termux-setup-storage` ใหม่
+4. ตรวจ `ls ~/storage/downloads` ว่าอ่านไฟล์ได้จริง
 
 ### พื้นที่เต็มระหว่างติดตั้ง
 
@@ -281,6 +301,19 @@ ls ~/storage/downloads
 ```
 
 กด Allow ในหน้าต่าง Android แล้วลองใหม่
+ถ้าใช้ Android 11 ขึ้นไป ให้ตรวจ **All files access** ตามหัวข้อด้านบนด้วย
+
+### `อ่านโฟลเดอร์ Downloads ไม่ได้ (สิทธิ์ถูกปฏิเสธ)`
+
+Termux ถูกถอนสิทธิ์หรือยังไม่ได้กด Allow:
+
+```bash
+termux-setup-storage
+ls -ld ~/storage/downloads
+```
+
+ถ้ายังไม่ได้ ให้ตรวจสิทธิ์ใน Settings ตามหัวข้อ `termux-setup-storage` ด้านบน
+แล้วรัน `bash scripts/import.sh` ใหม่
 
 ### `Permission denied` ตอนคัดลอก
 
@@ -423,15 +456,36 @@ ls -l ~/.termux/boot/php-server.sh
 cat ~/.php-server/boot.log
 ```
 
-3. ตรวจ battery optimization ของ Termux
-4. เปิด Termux เองแล้วดูว่าเซิร์ฟเวอร์ขึ้นหรือไม่:
+3. ตรวจ battery optimization ของ Termux และเปิด **Autostart**
+   (Xiaomi/HyperOS: Settings → Apps → Termux → Autostart; OPPO/vivo มีเมนูคล้ายกัน)
+4. ล็อก Termux ไว้ใน recent apps และอนุญาต **Background activity**
+5. เปิด Termux เองแล้วดูว่าเซิร์ฟเวอร์ขึ้นหรือไม่:
 
 ```bash
 bash scripts/server.sh status
 ```
 
-5. Android บางรุ่นต้องปิด **Phantom process killer** หรืออนุญาต background execution
+6. Android บางรุ่นต้องปิด **Phantom process killer** หรืออนุญาต background execution
    (ขึ้นกับผู้ผลิต)
+
+ถ้า `boot.log` ว่างหรือขึ้น `php ทำงานไม่ได้` ให้ตรวจว่า PHP ยังเรียกได้:
+
+```bash
+php -v
+apt update && apt full-upgrade -y
+```
+
+### `env: 'bash': No such file or directory` ใน `boot.log`
+
+สคริปต์ boot รุ่นเก่าใช้ `#!/usr/bin/env bash` ซึ่งหา `bash` ไม่เจอในสิ่งแวดล้อมตอนบูต
+รุ่นนี้เขียน shebang เป็น path เต็มของ Termux แล้ว ให้รันคำสั่งนี้ทับไฟล์เดิม:
+
+```bash
+cd ~/android-php-server
+bash scripts/install-boot.sh
+bash ~/.termux/boot/php-server.sh
+cat ~/.php-server/boot.log
+```
 
 ### `install-boot.sh` บอกไม่พบ config
 

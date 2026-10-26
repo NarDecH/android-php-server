@@ -273,7 +273,7 @@ if (!$isAuthed) {
                     id="pin"
                     name="pin"
                     type="password"
-                    inputmode="numeric"
+                    inputmode="text"
                     autocomplete="current-password"
                     required
                     autofocus

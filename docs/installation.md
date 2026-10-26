@@ -49,6 +49,16 @@ pkg upgrade -y
 
 ถ้ามีคำถามระหว่างติดตั้ง ให้เลือกค่าที่แนะนำ (ค่าเริ่มต้น) ได้เลย
 
+> **ถ้า `pkg upgrade` หยุดกลางทาง** แล้วขึ้น `CANNOT LINK EXECUTABLE` ของ `curl` หรือ `php`
+> ให้ซ่อมทั้งชุดด้วยคำสั่งนี้ (ใช้ `apt` โดยตรงเพื่อไม่พึ่ง `curl` ที่พังอยู่):
+>
+> ```bash
+> apt update
+> apt full-upgrade -y
+> ```
+>
+> `scripts/setup.sh` ตรวจและซ่อมกรณีนี้ให้อัตโนมัติด้วย
+
 ติดตั้งเครื่องมือพื้นฐาน:
 
 ```bash
@@ -75,15 +85,21 @@ termux-setup-storage
 ```
 
 จะมีหน้าต่างของ Android ขออนุญาตเข้าถึงไฟล์ → กด **Allow**
+(ต้องรันจากหน้าจอ Termux ที่กำลังเปิดอยู่ ไม่ใช่เรียกผ่านสคริปต์เบื้องหลัง)
 
-ตรวจสอบว่ามีโฟลเดอร์ Downloads:
+ตรวจสอบว่ามีโฟลเดอร์ Downloads และอ่านได้จริง:
 
 ```bash
 ls ~/storage/downloads
 ```
 
-ถ้าเจอ `Permission denied` หรือไม่มีโฟลเดอร์ ให้รัน `termux-setup-storage` ใหม่
-และตรวจสิทธิ์ใน Settings → Apps → Termux → Permissions → Files and media
+ถ้าเจอ `Permission denied` หรือไม่มีโฟลเดอร์:
+
+1. เปิด Settings → Apps → Termux → Permissions → **Files and media** → Allow
+2. Android 11 ขึ้นไปบางรุ่นซ่อนตัวเลือกนี้ ให้ไปที่
+   Settings → Apps → Termux → **Special app access → All files access** → Allow
+3. กลับมาที่ Termux แล้วรัน `termux-setup-storage` ใหม่
+4. ถ้า Termux ถูกปิดระหว่างขอสิทธิ์ ให้เปิดใหม่แล้วตรวจ `ls ~/storage/downloads` อีกครั้ง
 
 ---
 
@@ -209,7 +225,8 @@ bash scripts/install-boot.sh
 ```
 
 สคริปต์จะสร้าง `~/.termux/boot/php-server.sh` ซึ่งเรียก `server.sh start`
-หลังเครื่องบูตประมาณ 8 วินาที
+หลังเครื่องบูตประมาณ 8 วินาที และลองใหม่สูงสุด 3 ครั้ง (ห่างกัน 10 วินาที)
+ถ้าเครื่องบูตช้า
 
 ทดสอบทันทีโดยไม่ต้องรีบูต:
 
@@ -223,8 +240,11 @@ cat ~/.php-server/boot.log
 **เพิ่มโอกาสให้อยู่รอด:**
 
 - Settings → Apps → Termux → Battery → **Unrestricted**
+- เปิด **Autostart** ให้ Termux (พบบ่อยใน Xiaomi/HyperOS, OPPO, vivo)
+- ล็อก Termux ไว้ใน recent apps (ปัดลงแล้วกดไอคอนกุญแจ) ถ้าเครื่องมีตัวจัดการหน่วยความจำเข้มงวด
 - เปิด Termux ค้างไว้ (แตะ notification ของ wake lock ถ้ามี)
-- อย่าปัด Termux ออกจาก recent apps ถ้าเครื่องจัดการหน่วยความจำเข้มงวด
+- อย่าปัด Termux ออกจาก recent apps
+- Samsung: Settings → Battery → Background usage limits → เอา Termux ออกจาก **Sleeping apps**
 
 ยกเลิก:
 

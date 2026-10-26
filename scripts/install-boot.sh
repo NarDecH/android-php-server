@@ -29,10 +29,16 @@ command -v php >/dev/null 2>&1 || {
 
 mkdir -p "$BOOT_DIR" "$STATE_DIR"
 
+BOOT_SHELL="${PREFIX:-/data/data/com.termux/files/usr}/bin/bash"
+
 cat > "$BOOT_FILE" <<EOF
-#!/usr/bin/env bash
+#!$BOOT_SHELL
 # สร้างโดย scripts/install-boot.sh
 # ถ้าย้ายโฟลเดอร์โปรเจกต์ ให้รัน install-boot.sh ใหม่
+
+export HOME="\${HOME:-/data/data/com.termux/files/home}"
+export PREFIX="\${PREFIX:-/data/data/com.termux/files/usr}"
+export PATH="\$PREFIX/bin:/data/data/com.termux/files/usr/bin:\${PATH:-/system/bin}"
 
 mkdir -p "\$HOME/.php-server"
 
@@ -40,8 +46,17 @@ if command -v termux-wake-lock >/dev/null 2>&1; then
     termux-wake-lock >/dev/null 2>&1 || true
 fi
 
+# เครื่องบางรุ่นบูตช้า/ระบบยังไม่พร้อม ให้ลองใหม่แทนการยอมแพ้ครั้งเดียว
 sleep 8
-exec bash "$ROOT_DIR/scripts/server.sh" start >> "\$HOME/.php-server/boot.log" 2>&1
+for attempt in 1 2 3; do
+    printf '\n[%s] boot attempt %s\n' "\$(date '+%Y-%m-%d %H:%M:%S')" "\$attempt" >> "\$HOME/.php-server/boot.log"
+    if bash "$ROOT_DIR/scripts/server.sh" start >> "\$HOME/.php-server/boot.log" 2>&1; then
+        exit 0
+    fi
+    sleep 10
+done
+
+exit 1
 EOF
 
 chmod +x "$BOOT_FILE"
