@@ -38,6 +38,16 @@
 
 ---
 
+> **ทางลัด (ข้ามขั้น 3–5):** เปิด Termux แล้วรันคำสั่งเดียวนี้
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/NarDecH/android-php-server/main/scripts/bootstrap.sh | bash
+> ```
+>
+> สคริปต์จะติดตั้ง `git`, clone โปรเจกต์ไปที่ `~/android-php-server` และรัน
+> `scripts/setup.sh` ให้อัตโนมัติ (รวมการซ่อมแพ็กเกจ Termux)
+> จากนั้นข้ามไปอ่าน **ขั้น 6** (เริ่มเซิร์ฟเวอร์) ได้เลย
+
 ## 3. ตั้งค่า Termux ครั้งแรก
 
 เปิด Termux แล้วรัน:

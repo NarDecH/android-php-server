@@ -16,6 +16,28 @@ $maxFileUploads = (int) ini_get('max_file_uploads');
 $isLocal = is_local_request();
 $filesWritable = is_dir(files_path()) && is_writable(files_path());
 
+// ข้อมูลการเปิดอัตโนมัติเมื่อบูต (สคริปต์ของ Termux:Boot + บันทึกจาก boot.log)
+$homeDir = (string) (getenv('HOME') ?: '');
+$stateDir = (string) (getenv('PHP_SERVER_STATE_DIR') ?: ($homeDir === '' ? '' : $homeDir . '/.php-server'));
+$bootScriptPath = $homeDir === '' ? '' : $homeDir . '/.termux/boot/php-server.sh';
+$bootScriptInstalled = $bootScriptPath !== '' && is_file($bootScriptPath);
+$bootLogPath = $stateDir === '' ? '' : $stateDir . '/boot.log';
+$bootLogLines = [];
+$lastBootAt = null;
+
+if ($bootLogPath !== '' && is_readable($bootLogPath)) {
+    $logLines = @file($bootLogPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $logLines = is_array($logLines) ? $logLines : [];
+
+    foreach ($logLines as $line) {
+        if (preg_match('/^\[(.+?)\]\s*boot attempt/i', $line, $matches) === 1) {
+            $lastBootAt = $matches[1];
+        }
+    }
+
+    $bootLogLines = array_slice($logLines, -10);
+}
+
 $checks = [
     [
         'label' => 'PHP เวอร์ชัน 8.1 ขึ้นไป',
@@ -133,6 +155,41 @@ page_start('ภาพรวมเซิร์ฟเวอร์', 'home');
         </p>
     </section>
 </div>
+
+<section class="card" id="autostart">
+    <div class="card-head">
+        <h2>เปิดอัตโนมัติเมื่อบูต</h2>
+        <span class="tag <?= $bootScriptInstalled ? 'ok' : 'bad' ?>">
+            <?= $bootScriptInstalled ? 'ติดตั้งแล้ว' : 'ยังไม่ติดตั้ง' ?>
+        </span>
+    </div>
+    <dl class="kv">
+        <div>
+            <dt>สคริปต์บูต</dt>
+            <dd><code class="break"><?= h($bootScriptPath === '' ? 'ไม่พบ HOME ของ Termux' : $bootScriptPath) ?></code></dd>
+        </div>
+        <div>
+            <dt>ครั้งล่าสุด</dt>
+            <dd><?= h($lastBootAt ?? 'ยังไม่มีบันทึก') ?></dd>
+        </div>
+        <div>
+            <dt>ไฟล์บันทึก</dt>
+            <dd><code class="break"><?= h($bootLogPath === '' ? '-' : $bootLogPath) ?></code></dd>
+        </div>
+    </dl>
+    <?php if ($bootLogLines !== []): ?>
+        <pre class="bootlog"><?= h(implode("\n", $bootLogLines)) ?></pre>
+    <?php else: ?>
+        <p class="hint">
+            ยังไม่มีบันทึกใน <code>boot.log</code> — ติดตั้งด้วย
+            <code>bash scripts/install-boot.sh</code> แล้วรีบูตเครื่อง
+        </p>
+    <?php endif; ?>
+    <p class="hint">
+        ต้องมีแอป Termux:Boot จาก F-Droid และเปิดแอปอย่างน้อยหนึ่งครั้ง
+        · หลังรีบูตอาจใช้เวลา 1–3 นาที
+    </p>
+</section>
 
 <section class="card" id="files">
     <div class="card-head">
