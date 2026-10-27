@@ -426,13 +426,19 @@ PHP 8.5.12) แล้ว:
 - `server.sh status` จาก process ของ Termux รายงานกำลังทำงาน และอ่าน `~/storage/downloads` ได้
 - กัน path traversal, ไฟล์ซ่อน, `_lib.php` และ directory listing
 
-ข้อจำกัดของการทดสอบ: HyperOS บล็อก `adb input` และ `pm grant` จึงรันคำสั่งผ่าน `run-as`
-และให้สิทธิ์ storage ผ่าน `adb shell appops` สำหรับการทดสอบเท่านั้น ผู้ใช้จริงยังต้องกด
-Allow ในหน้าจอ Termux หรือรัน `termux-setup-storage` ตามคู่มือ
+รอบทดสอบสุดท้ายติดตั้งใหม่ทั้งหมดด้วย **Termux 0.118.3 และ Termux:Boot 0.8.1
+จาก F-Droid แบบทางการ** (release build ที่ไม่ debuggable, ลายเซ็น F-Droid, shared UID เดียวกัน)
+แล้วตั้งค่าด้วย `setup.sh` + `install-boot.sh`:
 
-หมายเหตุ: เครื่องทดสอบใช้ Termux 0.118.3 debug build ที่ลงนามคีย์เดียวกับ Termux:Boot
-0.8.1 (F-Droid) เพื่อให้ `run-as` เตรียมข้อมูลได้; receiver/service ที่ทดสอบเป็นของจริง
-และใช้ shared UID เดียวกัน
+- `setup.sh` บน Termux ที่เพิ่งติดตั้งใหม่ ติดตั้ง PHP 8.5.12 ให้เสร็จในครั้งเดียว
+- รีบูตจริง: `boot.log` แสดง `boot attempt 1` แล้วเริ่มเซิร์ฟเวอร์สำเร็จ (`/healthz` = 200)
+  ภายใน ~1 นาที 45 วินาทีหลังออกคำสั่งรีบูต (พอร์ตพร้อมใช้ก่อนหน้านั้นเล็กน้อย)
+- `import.sh` นำเข้าไฟล์จาก `~/storage/downloads` แล้วเปิดผ่าน HTTP ได้ (`import-ok 8.5.12`)
+
+หมายเหตุ: HyperOS ของเครื่องทดสอบบล็อก `adb input` และ `pm grant` จึงให้สิทธิ์ storage
+ผ่าน `adb shell appops` และส่งคำสั่งเข้าหน้าจอ Termux ด้วยคีย์บอร์ด HID เสมือนระดับ kernel
+(uhid) ซึ่งเทียบเท่ากับการที่ผู้ใช้พิมพ์เองบนเครื่อง — สำหรับผู้ใช้จริงให้รัน
+`termux-setup-storage` แล้วกด Allow ตามคู่มือ
 
 ตรวจ syntax PHP ด้วย `php -l` ทุกไฟล์; หาก PHP ใน Termux ต่างรุ่น สามารถตรวจซ้ำได้ด้วย
 `php -l www/index.php`
