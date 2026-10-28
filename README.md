@@ -21,7 +21,8 @@
 - **เปิดอัตโนมัติเมื่อบูต** ด้วย Termux:Boot (ไม่บังคับ)
 - **PIN + session** ป้องกันทั้งเว็บเมื่อเปิดให้เครื่องอื่นใน Wi-Fi เข้าถึง
 - **หน้าตั้งค่าทางเว็บ** เปลี่ยนพอร์ต/PIN และเปิดโหมด LAN ได้จากเบราว์เซอร์ พร้อมรีสตาร์ตอัตโนมัติและย้อนกลับค่าเดิมถ้าพอร์ตใหม่ไม่ขึ้น
-- **ดู log ผ่านเว็บ** — server, PHP errors, autostart และ settings พร้อมปุ่มรีเฟรช
+- **IP + QR code สำหรับ LAN** — หน้า settings แสดง IP ของ Wi-Fi ทุกอินเทอร์เฟซพร้อม QR ให้สแกนเปิดจากเครื่องอื่น
+- **ดู log ผ่านเว็บ** — server, PHP errors, autostart และ settings พร้อมปุ่มรีเฟรชและโหมดติดตามบรรทัดใหม่ทุก 5 วินาที
 - **ความปลอดภัยพื้นฐาน** CSRF token, ปิด directory listing, กัน path traversal, บล็อกไฟล์ซ่อน
 - **ตรวจ secrets ก่อน push** ด้วยสคริปต์ + git hook (`scripts/check-secrets.sh`)
 - **ใช้แบบออฟไลน์ได้** หลังติดตั้งเสร็จ ไม่ต้องต่อเน็ตเพื่อรันเซิร์ฟเวอร์
@@ -45,8 +46,13 @@ Android 16 / HyperOS, PHP 8.5.12 ใน Termux จาก F-Droid)
 ![หน้าตั้งค่า](docs/images/settings.png)
 
 **หน้าบันทึก (logs)** — ดู 200 บรรทัดล่าสุดของ server.log, php-error.log, boot.log และ settings.log
+กด **ติดตามทุก 5 วิ** เพื่อให้หน้าเว็บดึงบรรทัดใหม่เองโดยไม่ต้องรีเฟรช
 
-![หน้าบันทึก](docs/images/logs.png)
+![หน้าบันทึก](docs/images/logs-live.png)
+
+**QR code ในหน้าตั้งค่า** — สแกนเพื่อเปิดเซิร์ฟเวอร์จากมือถือ/แท็บเล็ตเครื่องอื่นใน Wi-Fi เดียวกัน
+
+![QR code ในหน้าตั้งค่า](docs/images/settings-qr.png)
 
 ---
 
@@ -333,8 +339,10 @@ UPLOAD_PIN=ตั้งรหัสที่คาดเดายาก
 bash scripts/server.sh restart
 ```
 
-3. ดู IP ของมือถือได้ที่ **Settings → About phone → Status** หรือ **Wi-Fi → เครือข่ายที่ต่ออยู่**
-4. เปิดจากเครื่องอื่น:
+3. เปิดหน้า **ตั้งค่า** ในเว็บ (เมนูบนสุด) — การ์ด **เปิดจากเครื่องอื่นใน Wi-Fi**
+   จะแสดง IP ของทุกอินเทอร์เฟซพร้อม **QR code** ให้สแกนจากเครื่องอื่นได้ทันที
+   (ถ้าไม่เห็น IP ให้ตรวจว่ามือถือต่อ Wi-Fi อยู่ แล้วรีเฟรชหน้า)
+4. หรือเปิดจากเครื่องอื่นด้วยการพิมพ์ที่อยู่:
 
 ```text
 http://<IP-ของมือถือ>:8080
@@ -374,16 +382,21 @@ android-php-server/
 ├── www/
 │   ├── index.php              # dashboard + สถานะเซิร์ฟเวอร์
 │   ├── upload.php             # อัปโหลด/ลบไฟล์ + login PIN
+│   ├── settings.php           # เปลี่ยนพอร์ต/PIN/HOST + IP & QR สำหรับ LAN
+│   ├── logs.php               # ดู log 4 ไฟล์ + โหมดติดตามอัตโนมัติ
 │   ├── _lib.php               # ฟังก์ชันและ layout ที่ใช้ร่วมกัน
 │   ├── assets/
 │   │   ├── app.css
 │   │   ├── app.js
-│   │   └── icon.svg
+│   │   ├── icon.svg
+│   │   └── vendor/qrcode.js   # สร้าง QR ฝั่งเบราว์เซอร์ (MIT)
 │   └── files/                 # ไฟล์ที่นำเข้า (ไม่ commit ขึ้น Git)
 ├── scripts/
 │   ├── setup.sh               # ติดตั้ง PHP และสร้าง config
 │   ├── server.sh              # start/stop/restart/status/logs/open
 │   ├── import.sh              # นำเข้าจาก Downloads (ไฟล์/โฟลเดอร์/ZIP)
+│   ├── apply-settings.sh      # รีสตาร์ตหลังแก้ค่าจากหน้าเว็บ + ย้อนกลับถ้าล้มเหลว
+│   ├── check-secrets.sh       # สแกน secrets ก่อน push (+ ติดตั้ง git hook)
 │   └── install-boot.sh        # ติดตั้ง Termux:Boot wrapper
 ├── docs/
 │   ├── installation.md        # ติดตั้งละเอียด
@@ -463,6 +476,10 @@ PHP 8.5.12) แล้ว:
 - **autostart หลังรีบูตจริง** ด้วย Termux:Boot 0.8.1: `boot.log` มี attempt และ `/healthz` ตอบ 200
 - `server.sh status` จาก process ของ Termux รายงานกำลังทำงาน และอ่าน `~/storage/downloads` ได้
 - กัน path traversal, ไฟล์ซ่อน, `_lib.php` และ directory listing
+- หน้า logs: โหมดติดตามอัตโนมัติอัปเดตบรรทัดใหม่ทุก 5 วินาที (หยุดเมื่อสลับแท็บ/ปิดโหมด) และเลื่อนตามเมื่ออยู่ท้าย log
+- หน้า settings: อ่าน IP ของ Wi-Fi ด้วย `net_get_interfaces()` (Termux อ่าน `/proc/net/fib_trie` ไม่ได้)
+  และ QR ที่สร้างในเบราว์เซอร์ถอดรหัสกลับเป็น URL ถูกต้องทั้งสองอินเทอร์เฟซ
+- โหมด LAN บนพอร์ตทดสอบ: เรียกผ่าน IP จริงของเครื่องได้, PIN ยังกันหน้าเว็บ (302) และล็อกอินผ่าน IP นั้นได้
 
 รอบทดสอบสุดท้ายติดตั้งใหม่ทั้งหมดด้วย **Termux 0.118.3 และ Termux:Boot 0.8.1
 จาก F-Droid แบบทางการ** (release build ที่ไม่ debuggable, ลายเซ็น F-Droid, shared UID เดียวกัน)
@@ -494,3 +511,7 @@ PHP 8.5.12) แล้ว:
 
 โปรเจกต์นี้เผยแพร่เพื่อการเรียนรู้และการใช้งานส่วนตัว
 สามารถ fork และปรับใช้ได้ตามต้องการ
+
+โปรเจกต์ใช้ [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
+ของ Kazuhiko Arase (MIT License) โดยคัดลอกไฟล์ `qrcode.js` ไว้ที่ `www/assets/vendor/`
+เพื่อให้สร้าง QR ได้แม้ไม่มีอินเทอร์เน็ต — ไฟล์ต้นฉบับมีข้อความสัญญาอนุญาตอยู่ในหัวไฟล์

@@ -320,15 +320,22 @@ UPLOAD_PIN=รหัสของคุณ
 
 2. `bash scripts/server.sh restart`
 
+   หรือเปิดหน้า **ตั้งค่า** (`settings.php`) แล้วเลือก **ให้เครื่องอื่นใน Wi-Fi เข้าถึง (0.0.0.0)**
+   พร้อมตั้ง PIN — ระบบจะบันทึกและรีสตาร์ตให้เอง (ต้องมี PIN ก่อนเสมอ)
+
 3. ดู IP ของมือถือ:
-   - Settings → About phone → Status → IP address
+   - การ์ด **เปิดจากเครื่องอื่นใน Wi-Fi** ในหน้า settings (แสดงทุกอินเทอร์เฟซพร้อม QR)
+   - Settings ของ Android → About phone → Status → IP address
    - หรือ Wi-Fi → รายละเอียดเครือข่าย
 
-4. เปิดจากคอม/แท็บเล็ต:
+4. เปิดจากคอม/แท็บเล็ต — สแกน QR ในหน้า settings หรือพิมพ์:
 
 ```text
 http://192.168.x.x:8080
 ```
+
+> **หมายเหตุ:** มือถือบางรุ่นมี Wi-Fi สองอินเทอร์เฟซ (เช่น `wlan0` และ `wlan1` ต่อคนละเครือข่าย)
+> หน้า settings จะแสดงทั้งคู่พร้อมชื่ออินเทอร์เฟซ — เลือกอันที่เครื่องปลายทางต่ออยู่จริง
 
 ### ถ้าเข้าไม่ได้
 
@@ -350,6 +357,12 @@ http://192.168.x.x:8080
 
 ## 9. ดู log และแก้ PHP error
 
+ดูผ่านเว็บที่เมนู **บันทึก** (`/logs.php`) — เลือกได้ 4 ไฟล์: เซิร์ฟเวอร์, PHP errors,
+Autostart และการตั้งค่า กด **ติดตามทุก 5 วิ** เพื่อให้หน้านี้ดึงบรรทัดใหม่เอง
+(หยุดชั่วคราวเมื่อสลับแท็บหรือปิดหน้าจอ และจำสถานะไว้หลังรีเฟรช)
+
+หรือดูจาก Termux:
+
 ```bash
 bash scripts/server.sh logs
 ```
@@ -365,6 +378,11 @@ tail -n 50 ~/.php-server/boot.log
 - `server.log` — output ของ PHP built-in server (request/error)
 - `php-error.log` — warning/fatal error ของ PHP (เพราะ `display_errors=0`)
 - `boot.log` — เฉพาะตอนเปิดอัตโนมัติผ่าน Termux:Boot
+- `settings.log` — ผลการรีสตาร์ต/ย้อนกลับค่าหลังแก้จากหน้า settings
+
+หมายเหตุ: PHP built-in server จะบันทึกเฉพาะคำขอที่เสิร์ฟไฟล์จริง (เช่น `/`, `/logs.php`,
+`/assets/...`) ส่วนคำขอที่ `router.php` ตอบเอง (เช่น `/healthz` หรือหน้า 404)
+จะไม่ปรากฏใน `server.log` — เป็นพฤติกรรมของตัว built-in server เอง
 
 ตรวจ syntax ของไฟล์ PHP:
 

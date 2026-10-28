@@ -125,6 +125,106 @@ function server_base_url(): string
     return ($isHttps ? 'https' : 'http') . '://' . $host;
 }
 
+/**
+ * IPv4 ของเครื่องนี้ที่เครื่องอื่นในวงเดียวกันเข้าถึงได้ (Wi-Fi ก่อน)
+ *
+ * Termux อ่าน /proc/net/fib_trie ไม่ได้ และมักไม่มีคำสั่ง `ip` ใน PATH
+ * จึงใช้ net_get_interfaces() ของ PHP เป็นหลัก แล้วค่อย fallback ไปที่ ifconfig
+ *
+ * @return array<int, array{ip: string, iface: string}>
+ */
+function lan_ipv4_networks(): array
+{
+    static $cached = null;
+
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    /** @var array<int, array{0: string, 1: string}> $candidates */
+    $candidates = [];
+
+    if (function_exists('net_get_interfaces')) {
+        $interfaces = @net_get_interfaces();
+
+        foreach (is_array($interfaces) ? $interfaces : [] as $name => $info) {
+            if (empty($info['up'])) {
+                continue;
+            }
+
+            foreach (($info['unicast'] ?? []) as $address) {
+                $ip = is_array($address) ? (string) ($address['address'] ?? '') : '';
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+                    $candidates[] = [(string) $name, $ip];
+                }
+            }
+        }
+    }
+
+    if (!$candidates) {
+        $output = [];
+        @exec('ifconfig 2>/dev/null', $output);
+
+        $interface = '';
+        foreach ($output as $line) {
+            if (preg_match('/^([A-Za-z0-9_.:-]+)\s/', $line, $matches) === 1) {
+                $interface = $matches[1];
+            }
+            if (preg_match('/\binet (?:addr:)?(\d{1,3}(?:\.\d{1,3}){3})/', $line, $matches) === 1) {
+                $candidates[] = [$interface, $matches[1]];
+            }
+        }
+    }
+
+    if (!$candidates) {
+        $output = [];
+        @exec('ip -4 -o addr show scope global 2>/dev/null', $output);
+
+        foreach ($output as $line) {
+            if (preg_match('/^\d+:\s+(\S+)\s+inet\s+(\d{1,3}(?:\.\d{1,3}){3})/', $line, $matches) === 1) {
+                $candidates[] = [$matches[1], $matches[2]];
+            }
+        }
+    }
+
+    $usable = [];
+    foreach ($candidates as [$name, $ip]) {
+        if ($ip === '0.0.0.0' || str_starts_with($ip, '127.') || str_starts_with($ip, '169.254.')) {
+            continue;
+        }
+
+        if (preg_match('/^(lo|dummy|p2p|tun|ppp|rmnet|ccmni)/i', $name) === 1) {
+            continue;
+        }
+
+        $usable[] = [$name, $ip];
+    }
+
+    // Wi-Fi มาก่อน แล้วค่อยอินเทอร์เฟซอื่น (hotspot / USB tethering)
+    usort($usable, static function (array $a, array $b): int {
+        $rank = static function (string $name): int {
+            if (preg_match('/^(wlan|swlan)/i', $name) === 1) {
+                return 0;
+            }
+
+            return preg_match('/^(ap|eth)/i', $name) === 1 ? 1 : 2;
+        };
+
+        return $rank($a[0]) <=> $rank($b[0]);
+    });
+
+    $networks = [];
+    foreach ($usable as [$name, $ip]) {
+        if (isset($networks[$ip])) {
+            continue;
+        }
+
+        $networks[$ip] = ['ip' => $ip, 'iface' => $name];
+    }
+
+    return $cached = array_values($networks);
+}
+
 function start_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -259,7 +359,7 @@ function page_start(string $title, string $active = ''): void
     <?php
 }
 
-function page_end(): void
+function page_end(array $scripts = []): void
 {
     ?>
     <footer class="footer">
@@ -270,6 +370,9 @@ function page_end(): void
         <span>PHP built-in server (ใช้ส่วนตัว/พัฒนาเท่านั้น)</span>
     </footer>
 </div>
+<?php foreach ($scripts as $script): ?>
+<script src="<?= h($script) ?>" defer></script>
+<?php endforeach; ?>
 <script src="assets/app.js" defer></script>
 </body>
 </html>

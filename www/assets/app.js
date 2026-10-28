@@ -150,4 +150,129 @@
             }
         });
     });
+
+    // ---------- QR code สำหรับเปิดเซิร์ฟเวอร์จากเครื่องอื่น (assets/vendor/qrcode.js) ----------
+
+    document.querySelectorAll('[data-qr]').forEach((box) => {
+        const value = box.getAttribute('data-qr') || '';
+
+        if (!value || typeof window.qrcode !== 'function') return;
+
+        try {
+            const qr = window.qrcode(0, 'M');
+            qr.addData(value);
+            qr.make();
+            box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+
+            const svg = box.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('role', 'img');
+                svg.setAttribute('aria-label', `QR code สำหรับ ${value}`);
+            }
+        } catch (error) {
+            /* ถ้าสร้าง QR ไม่ได้ ปล่อยให้ URL ที่แสดงอยู่ข้าง ๆ ใช้แทนได้ */
+        }
+    });
+
+    // ---------- log viewer: ติดตามบรรทัดใหม่ทุก 5 วินาที ----------
+
+    const liveToggle = document.getElementById('log-live-toggle');
+    const logView = document.getElementById('log-view');
+
+    if (liveToggle && logView) {
+        const endpoint = liveToggle.getAttribute('data-endpoint') || '';
+        const interval = Math.max(2000, Number(liveToggle.getAttribute('data-interval')) || 5000);
+        const seconds = Math.round(interval / 1000);
+        const label = document.getElementById('log-live-label');
+        const statusEl = document.getElementById('log-live-status');
+        const meta = document.getElementById('log-meta');
+        const mtime = document.getElementById('log-mtime');
+        const storageKey = 'phpsrv.logLive';
+        let timer = null;
+        let busy = false;
+
+        const setStatus = (text) => {
+            if (statusEl) statusEl.textContent = text ? ` · ${text}` : '';
+        };
+
+        const nearBottom = () => logView.scrollHeight - logView.scrollTop - logView.clientHeight < 48;
+
+        const applyPayload = (data) => {
+            if (!data || typeof data.text !== 'string') return;
+            if (data.text === logView.textContent) {
+                setStatus('ไม่มีบรรทัดใหม่');
+                return;
+            }
+
+            const stick = nearBottom();
+            logView.textContent = data.text;
+            if (stick) logView.scrollTop = logView.scrollHeight;
+            if (meta) meta.textContent = `${data.count} บรรทัด · ${data.size}`;
+            if (mtime && data.mtime) mtime.textContent = data.mtime;
+            setStatus(`อัปเดต ${new Date().toLocaleTimeString('th-TH')}`);
+        };
+
+        const poll = async () => {
+            if (busy || !endpoint || document.hidden) return;
+            busy = true;
+
+            try {
+                const response = await fetch(endpoint, {
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const type = response.headers.get('content-type') || '';
+
+                if (!response.ok) {
+                    throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${response.status}`);
+                }
+                if (!type.includes('application/json')) {
+                    throw new Error('ต้องล็อกอินใหม่');
+                }
+
+                applyPayload(await response.json());
+            } catch (error) {
+                setStatus(error instanceof Error && error.message ? error.message : 'ขาดการเชื่อมต่อ');
+            } finally {
+                busy = false;
+            }
+        };
+
+        const setLive = (on, remember = true) => {
+            liveToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+            if (label) label.textContent = on ? `ติดตามทุก ${seconds} วิ` : 'ติดตามอัตโนมัติ';
+
+            if (on) {
+                if (!timer) timer = window.setInterval(poll, interval);
+                poll();
+            } else {
+                if (timer) window.clearInterval(timer);
+                timer = null;
+                setStatus('');
+            }
+
+            if (remember) {
+                try {
+                    window.localStorage.setItem(storageKey, on ? '1' : '0');
+                } catch (error) {
+                    /* โหมดส่วนตัวบางเบราว์เซอร์ปิด localStorage */
+                }
+            }
+        };
+
+        liveToggle.addEventListener('click', () => {
+            setLive(liveToggle.getAttribute('aria-pressed') !== 'true');
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && liveToggle.getAttribute('aria-pressed') === 'true') poll();
+        });
+
+        try {
+            if (window.localStorage.getItem(storageKey) === '1') setLive(true, false);
+        } catch (error) {
+            /* ไม่มี localStorage ก็เริ่มแบบปิด */
+        }
+    }
 })();

@@ -208,6 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $lastResult = settings_last_result($resultFile);
 $hostForUrl = (string) ($_SERVER['HTTP_HOST'] ?? '127.0.0.1:' . $currentPort);
 $hostOnly = preg_replace('/:\d+$/', '', $hostForUrl) ?: '127.0.0.1';
+$lanMode = $currentHost === '0.0.0.0';
+$lanNetworks = lan_ipv4_networks();
 
 page_start('ตั้งค่า', 'settings');
 ?>
@@ -342,6 +344,52 @@ page_start('ตั้งค่า', 'settings');
 
 <section class="card">
     <div class="card-head">
+        <h2>เปิดจากเครื่องอื่นใน Wi-Fi</h2>
+        <span class="tag <?= $lanMode ? 'ok' : '' ?>"><?= $lanMode ? 'โหมด LAN เปิด' : 'เฉพาะเครื่องนี้' ?></span>
+    </div>
+
+    <?php if (!$lanNetworks): ?>
+        <p class="hint">
+            ไม่พบ IP ในวง Wi-Fi ของเครื่องนี้ — ตรวจสอบว่ามือถือต่อ Wi-Fi อยู่
+            แล้วรีเฟรชหน้านี้ใหม่ (ถ้าใช้ฮอตสปอตจากเครื่องนี้เอง IP จะเปลี่ยนตามผู้เชื่อมต่อ)
+        </p>
+    <?php else: ?>
+        <?php if (!$lanMode): ?>
+            <div class="alert alert-warning" role="status">
+                ตอนนี้เซิร์ฟเวอร์รับเฉพาะ 127.0.0.1 — เลือก
+                <strong>ให้เครื่องอื่นใน Wi-Fi เข้าถึง (0.0.0.0)</strong> พร้อมตั้ง PIN ก่อน
+                แล้วสแกน QR ด้านล่างได้จากเครื่องอื่น
+            </div>
+        <?php endif; ?>
+
+        <div class="qr-grid">
+            <?php foreach ($lanNetworks as $network): ?>
+                <?php $lanUrl = 'http://' . $network['ip'] . ':' . $currentPort . '/'; ?>
+                <div class="qr-item">
+                    <div class="qr-box" data-qr="<?= h($lanUrl) ?>"></div>
+                    <div class="qr-meta">
+                        <strong><?= h($network['ip']) ?></strong>
+                        <span class="hint small"><?= h($network['iface']) ?></span>
+                        <code><?= h($lanUrl) ?></code>
+                        <a class="hint small" href="<?= h($lanUrl) ?>" rel="noreferrer">เปิดลิงก์นี้</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <p class="hint small">
+            สแกนด้วยกล้องของเครื่องที่ต่อ Wi-Fi เดียวกัน — ต้องมี PIN ทุกครั้งเมื่อเปิดโหมด LAN
+            <?php if ($pinEnabled): ?>
+                (ตอนนี้เปิดอยู่)
+            <?php else: ?>
+                (ตอนนี้ยังไม่มี PIN)
+            <?php endif; ?>
+        </p>
+    <?php endif; ?>
+</section>
+
+<section class="card">
+    <div class="card-head">
         <h2>ถ้ารีสตาร์ตไม่ขึ้น</h2>
         <span class="tag">TERMUX</span>
     </div>
@@ -353,4 +401,4 @@ bash scripts/server.sh restart
 tail -n 40 ~/.php-server/settings.log</code></pre>
 </section>
 <?php
-page_end();
+page_end(['assets/vendor/qrcode.js']);

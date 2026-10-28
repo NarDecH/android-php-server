@@ -54,6 +54,23 @@ $fileExists = is_file($currentLog['file']);
 $fileSize = $fileExists ? (int) filesize($currentLog['file']) : 0;
 $fileMtime = $fileExists ? (int) filemtime($currentLog['file']) : 0;
 
+// โหมดติดตามอัตโนมัติ: คืนเฉพาะข้อมูลที่ต้องอัปเดตเป็น JSON
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store');
+    echo json_encode([
+        'ok' => true,
+        'file' => $current,
+        'exists' => $fileExists,
+        'text' => implode("\n", $lines),
+        'count' => count($lines),
+        'size' => format_bytes($fileSize),
+        'mtime' => $fileMtime > 0 ? date('d/m/Y H:i:s', $fileMtime) : '',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 page_start('บันทึก', 'logs');
 ?>
 <div class="page-head">
@@ -62,7 +79,16 @@ page_start('บันทึก', 'logs');
         <h1>บันทึกของเซิร์ฟเวอร์</h1>
         <p class="sub">ดู 200 บรรทัดล่าสุดของแต่ละไฟล์ได้จากมือถือ ไม่ต้องเข้า Termux</p>
     </div>
-    <a class="btn ghost" href="logs.php?f=<?= h($current) ?>">↻ รีเฟรช</a>
+    <div class="head-actions">
+        <?php if ($fileExists && $lines): ?>
+            <button class="btn ghost log-live" type="button" id="log-live-toggle" aria-pressed="false"
+                    data-endpoint="logs.php?f=<?= h($current) ?>&amp;ajax=1" data-interval="5000">
+                <span class="dot-live" aria-hidden="true"></span>
+                <span id="log-live-label">ติดตามอัตโนมัติ</span>
+            </button>
+        <?php endif; ?>
+        <a class="btn ghost" href="logs.php?f=<?= h($current) ?>">↻ รีเฟรช</a>
+    </div>
 </div>
 
 <div class="tabs">
@@ -76,7 +102,7 @@ page_start('บันทึก', 'logs');
 <section class="card">
     <div class="card-head">
         <h2><?= h($currentLog['label']) ?></h2>
-        <span class="tag">
+        <span class="tag" id="log-meta">
             <?php if ($fileExists): ?>
                 <?= h((string) count($lines)) ?> บรรทัด · <?= h(format_bytes($fileSize)) ?>
             <?php else: ?>
@@ -99,12 +125,13 @@ page_start('บันทึก', 'logs');
             <p>ยังไม่มีข้อความถูกบันทึก</p>
         </div>
     <?php else: ?>
-        <pre class="bootlog log-view"><?= h(implode("\n", $lines)) ?></pre>
+        <pre class="bootlog log-view" id="log-view" tabindex="0"><?= h(implode("\n", $lines)) ?></pre>
         <p class="hint small">
             ไฟล์: <code><?= h($currentLog['file']) ?></code>
             <?php if ($fileMtime > 0): ?>
-                · แก้ล่าสุด <?= h(date('d/m/Y H:i:s', $fileMtime)) ?>
+                · แก้ล่าสุด <span id="log-mtime"><?= h(date('d/m/Y H:i:s', $fileMtime)) ?></span>
             <?php endif; ?>
+            <span id="log-live-status"></span>
         </p>
     <?php endif; ?>
 </section>

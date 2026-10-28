@@ -503,6 +503,86 @@ code {
     max-height: 460px;
 }
 
+.log-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.log-live .dot-live {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #5b6b86;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.log-live[aria-pressed="true"] {
+    border-color: rgba(52, 211, 153, 0.35);
+    color: var(--accent);
+}
+
+.log-live[aria-pressed="true"] .dot-live {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.14);
+    animation: pulse 2.4s ease-in-out infinite;
+}
+
+#log-live-status {
+    color: var(--accent);
+}
+
+/* ---------- QR (เปิดจากเครื่องอื่น) ---------- */
+
+.qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 6px 0 12px;
+}
+
+.qr-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(7, 13, 25, 0.55);
+}
+
+.qr-box {
+    flex: 0 0 auto;
+    width: 112px;
+    height: 112px;
+    padding: 6px;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.qr-box svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.qr-meta {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.qr-meta strong {
+    font-size: 14px;
+}
+
+.qr-meta code {
+    color: var(--accent-2);
+    font-size: 11.5px;
+    overflow-wrap: anywhere;
+}
+
 /* ---------- tabs ---------- */
 
 .tabs {
@@ -690,6 +770,13 @@ code {
     margin: 0;
     color: var(--muted);
     font-size: 13.5px;
+}
+
+.head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
 }
 
 /* ---------- upload ---------- */
