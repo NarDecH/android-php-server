@@ -310,7 +310,8 @@ function send_security_headers(): void
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header(
         "Content-Security-Policy: default-src 'self'; img-src 'self' data:; "
-        . "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
+        // blob: จำเป็นสำหรับดาวน์โหลด log ที่กรองแล้ว (เบราว์เซอร์สร้างไฟล์เอง)
+        . "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' blob:; "
         . "form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
     );
 }

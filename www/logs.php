@@ -442,6 +442,9 @@ page_start('บันทึก', 'logs');
             <input class="log-filter" id="log-filter" type="search" autocomplete="off"
                    placeholder="กรองบรรทัด… เช่น error, 404, GET" aria-label="กรองบรรทัดใน log">
             <button class="btn tiny ghost" type="button" id="log-copy">คัดลอก</button>
+            <button class="btn tiny ghost" type="button" id="log-save"
+                    title="ดาวน์โหลดเฉพาะบรรทัดที่แสดงอยู่"
+                    data-file="<?= h(basename($currentLog['file'])) ?>">↓ .txt</button>
             <span class="hint small" id="log-filter-count"></span>
             <div class="log-range" role="group" aria-label="ช่วงเวลาของ log">
                 <a class="chip<?= $sinceMinutes === 0 ? ' active' : '' ?>"
@@ -458,7 +461,13 @@ page_start('บันทึก', 'logs');
                 <?php endforeach; ?>
             </div>
         </div>
-        <pre class="bootlog log-view" id="log-view" tabindex="0"><?= h(implode("\n", $lines)) ?></pre>
+        <div class="log-scroll">
+            <pre class="bootlog log-view" id="log-view" tabindex="0"><?= h(implode("\n", $lines)) ?></pre>
+            <div class="log-jump">
+                <button class="btn tiny ghost" type="button" id="log-top" aria-label="เลื่อนไปบนสุด">↑</button>
+                <button class="btn tiny ghost" type="button" id="log-bottom" aria-label="เลื่อนไปท้ายสุด">↓</button>
+            </div>
+        </div>
         <p class="hint small">
             ไฟล์: <code><?= h($currentLog['file']) ?></code>
             <?php if ($fileMtime > 0): ?>

@@ -256,6 +256,50 @@
                 window.setTimeout(resetLabel, 2000);
             });
         }
+
+        // ดาวน์โหลดเฉพาะบรรทัดที่แสดงอยู่ (หลังกรอง) เป็น .txt
+        const saveButton = document.getElementById('log-save');
+
+        if (saveButton) {
+            saveButton.addEventListener('click', () => {
+                const base = (saveButton.getAttribute('data-file') || 'log').replace(/\.log$/i, '');
+                const now = new Date();
+                const pad = (value) => String(value).padStart(2, '0');
+                const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+                const blob = new Blob([logView.textContent], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+
+                link.href = url;
+                link.download = `${base}-${stamp}.txt`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+                const label = saveButton.textContent;
+                saveButton.textContent = 'บันทึกแล้ว';
+                window.setTimeout(() => {
+                    saveButton.textContent = label;
+                }, 1800);
+            });
+        }
+
+        // ปุ่มกระโดดบน/ล่างของ log
+        const topButton = document.getElementById('log-top');
+        const bottomButton = document.getElementById('log-bottom');
+
+        if (topButton) {
+            topButton.addEventListener('click', () => {
+                logView.scrollTop = 0;
+            });
+        }
+
+        if (bottomButton) {
+            bottomButton.addEventListener('click', () => {
+                logView.scrollTop = logView.scrollHeight;
+            });
+        }
     }
 
     // ---------- log viewer: ติดตามบรรทัดใหม่ทุก 5 วินาที ----------

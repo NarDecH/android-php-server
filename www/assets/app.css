@@ -547,6 +547,31 @@ code {
     max-height: 460px;
 }
 
+.log-scroll {
+    position: relative;
+}
+
+.log-jump {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.log-jump .btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(15, 26, 46, 0.92);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.9;
+}
+
 .log-live {
     display: inline-flex;
     align-items: center;
