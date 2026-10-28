@@ -54,6 +54,130 @@ function log_tail(string $file, int $lines = 200): array
     return array_slice($rows, -$lines);
 }
 
+/**
+ * อ่านเนื้อหาไฟล์ท้าย ๆ ไม่เกิน maxBytes (กันไฟล์ใหญ่เกินหน่วยความจำ)
+ */
+function log_tail_bytes(string $file, int $maxBytes = 4 * 1024 * 1024): string
+{
+    $size = (int) @filesize($file);
+    $handle = @fopen($file, 'rb');
+
+    if ($handle === false) {
+        return '';
+    }
+
+    if ($size > $maxBytes) {
+        fseek($handle, $size - $maxBytes);
+    }
+
+    $data = (string) stream_get_contents($handle);
+    fclose($handle);
+
+    return $data;
+}
+
+/**
+ * สร้าง ZIP แบบไม่บีบอัดในหน่วยความจำ (ไม่ต้องใช้ไฟล์ชั่วคราวหรือส่วนขยาย zip)
+ *
+ * @param array<string, string> $files
+ */
+function zip_store(array $files): string
+{
+    $data = '';
+    $central = '';
+    $count = 0;
+    $offset = 0;
+
+    foreach ($files as $name => $content) {
+        $name = (string) $name;
+        $content = (string) $content;
+        $crc = crc32($content);
+        $size = strlen($content);
+        $nameLength = strlen($name);
+
+        // บีบอัดแบบ deflate ถ้าช่วยลดขนาดได้จริง
+        $deflated = function_exists('gzdeflate') ? @gzdeflate($content, 6) : false;
+        $method = $deflated !== false && strlen($deflated) < $size ? 8 : 0;
+        $payload = $method === 8 ? $deflated : $content;
+        $packedSize = strlen($payload);
+
+        $local = "PK\x03\x04"
+            . pack('v', 20)
+            . pack('v', 0x0800)
+            . pack('v', $method)
+            . pack('v', 0)
+            . pack('v', 0)
+            . pack('V', $crc)
+            . pack('V', $packedSize)
+            . pack('V', $size)
+            . pack('v', $nameLength)
+            . pack('v', 0)
+            . $name;
+
+        $data .= $local . $payload;
+
+        $central .= "PK\x01\x02"
+            . pack('v', 20)
+            . pack('v', 20)
+            . pack('v', 0x0800)
+            . pack('v', $method)
+            . pack('v', 0)
+            . pack('v', 0)
+            . pack('V', $crc)
+            . pack('V', $packedSize)
+            . pack('V', $size)
+            . pack('v', $nameLength)
+            . pack('v', 0)
+            . pack('v', 0)
+            . pack('v', 0)
+            . pack('v', 0)
+            . pack('V', 0)
+            . pack('V', $offset)
+            . $name;
+
+        $offset += strlen($local) + $packedSize;
+        $count++;
+    }
+
+    return $data . $central
+        . "PK\x05\x06"
+        . pack('v', 0)
+        . pack('v', 0)
+        . pack('v', $count)
+        . pack('v', $count)
+        . pack('V', strlen($central))
+        . pack('V', $offset)
+        . pack('v', 0);
+}
+
+/**
+ * รวม log ที่มีอยู่เป็น ZIP ให้ดาวน์โหลดครั้งเดียว
+ */
+function logs_zip_payload(array $logs): ?string
+{
+    $entries = [];
+
+    foreach ($logs as $log) {
+        if (!is_file($log['file']) || !is_readable($log['file'])) {
+            continue;
+        }
+
+        $entries[basename($log['file'])] = log_tail_bytes($log['file']);
+    }
+
+    if (!$entries) {
+        return null;
+    }
+
+    $info = 'PHP Server on Android — log export' . "\n"
+        . 'created: ' . date('d/m/Y H:i:s') . "\n"
+        . 'host: ' . (string) ($_SERVER['HTTP_HOST'] ?? '-') . "\n"
+        . 'php: ' . PHP_VERSION . "\n"
+        . 'note: each file contains at most the last 4 MB' . "\n";
+
+    return zip_store(['info.txt' => $info] + $entries);
+}
+
 $fileExists = is_file($currentLog['file']);
 $fileSize = $fileExists ? (int) filesize($currentLog['file']) : 0;
 $fileMtime = $fileExists ? (int) filemtime($currentLog['file']) : 0;
@@ -78,6 +202,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear
     }
 
     redirect_to('logs.php?f=' . $current . ($lineLimit === 200 ? '' : '&lines=' . $lineLimit));
+}
+
+// ดาวน์โหลด log ทั้ง 4 ไฟล์เป็น ZIP เดียว
+if (($_GET['download'] ?? '') === 'all') {
+    $zip = logs_zip_payload($logs);
+
+    if ($zip === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo 'ยังไม่มีไฟล์ log ให้ดาวน์โหลด';
+        exit;
+    }
+
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="php-server-logs-' . date('Ymd-Hi') . '.zip"');
+    header('Content-Length: ' . strlen($zip));
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store');
+    echo $zip;
+    exit;
 }
 
 // ดาวน์โหลดไฟล์เต็ม — ชื่อไฟล์มาจาก whitelist ด้านบน ไม่รับ path จากผู้ใช้
@@ -137,6 +282,18 @@ page_start('บันทึก', 'logs');
         <?php endif; ?>
         <?php if ($fileExists): ?>
             <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=1">↓ ดาวน์โหลด</a>
+        <?php endif; ?>
+        <?php
+        $anyLogFile = false;
+        foreach ($logs as $log) {
+            if (is_file($log['file'])) {
+                $anyLogFile = true;
+                break;
+            }
+        }
+        ?>
+        <?php if ($anyLogFile): ?>
+            <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=all">↓ ทั้งหมด (.zip)</a>
         <?php endif; ?>
         <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>">↻ รีเฟรช</a>
         <?php if ($fileExists && $lines): ?>

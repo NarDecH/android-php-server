@@ -379,6 +379,45 @@ code {
     color: var(--danger);
 }
 
+/* ---------- PHP error summary ---------- */
+
+.error-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+    gap: 10px;
+    margin: 4px 0 12px;
+}
+
+.error-stat {
+    padding: 10px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(7, 13, 25, 0.55);
+    text-align: center;
+}
+
+.error-stat strong {
+    display: block;
+    font-size: 20px;
+    line-height: 1.3;
+    color: var(--accent);
+}
+
+.error-stat span {
+    color: var(--muted);
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+}
+
+.error-stat.bad {
+    border-color: rgba(255, 122, 144, 0.3);
+    background: rgba(255, 122, 144, 0.06);
+}
+
+.error-stat.bad strong {
+    color: var(--danger);
+}
+
 /* ---------- status ---------- */
 
 .kv {

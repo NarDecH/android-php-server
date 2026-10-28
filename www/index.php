@@ -38,6 +38,36 @@ if ($bootLogPath !== '' && is_readable($bootLogPath)) {
     $bootLogLines = array_slice($logLines, -10);
 }
 
+// สรุป error/warning จาก php-error.log (นับเฉพาะ 500 บรรทัดล่าสุด)
+$phpErrorPath = $stateDir === '' ? '' : $stateDir . '/php-error.log';
+$errorTypes = ['Fatal error', 'Parse error', 'Warning', 'Deprecated', 'Notice'];
+$errorCounts = array_fill_keys($errorTypes, 0);
+$errorTotal = 0;
+$lastErrorLine = '';
+
+if ($phpErrorPath !== '' && is_readable($phpErrorPath)) {
+    $phpErrorLines = @file($phpErrorPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $phpErrorLines = is_array($phpErrorLines) ? array_slice($phpErrorLines, -500) : [];
+
+    foreach ($phpErrorLines as $line) {
+        foreach ($errorTypes as $type) {
+            if (str_contains($line, $type)) {
+                $errorCounts[$type]++;
+                $errorTotal++;
+                $lastErrorLine = $line;
+                break;
+            }
+        }
+    }
+}
+
+$lastErrorShort = '';
+if ($lastErrorLine !== '') {
+    $lastErrorShort = function_exists('mb_strimwidth')
+        ? mb_strimwidth($lastErrorLine, 0, 160, '…')
+        : (strlen($lastErrorLine) > 160 ? substr($lastErrorLine, 0, 160) . '…' : $lastErrorLine);
+}
+
 $checks = [
     [
         'label' => 'PHP เวอร์ชัน 8.1 ขึ้นไป',
@@ -189,6 +219,41 @@ page_start('ภาพรวมเซิร์ฟเวอร์', 'home');
         ต้องมีแอป Termux:Boot จาก F-Droid และเปิดแอปอย่างน้อยหนึ่งครั้ง
         · หลังรีบูตอาจใช้เวลา 1–3 นาที
     </p>
+</section>
+
+<section class="card" id="php-errors">
+    <div class="card-head">
+        <h2>สุขภาพ PHP (php-error.log)</h2>
+        <span class="tag <?= $errorTotal > 0 ? 'bad' : 'ok' ?>">
+            <?= $errorTotal > 0 ? h((string) $errorTotal) . ' รายการ' : 'ไม่พบ error' ?>
+        </span>
+    </div>
+
+    <?php if ($phpErrorPath === '' || !is_readable($phpErrorPath)): ?>
+        <p class="hint">ยังไม่มีไฟล์ <code>php-error.log</code> — จะถูกสร้างเมื่อ PHP เจอ warning/error</p>
+    <?php else: ?>
+        <div class="error-stats">
+            <?php foreach ($errorCounts as $type => $count): ?>
+                <div class="error-stat<?= $count > 0 ? ' bad' : '' ?>">
+                    <strong><?= h((string) $count) ?></strong>
+                    <span><?= h($type) ?></span>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <?php if ($lastErrorLine !== ''): ?>
+            <p class="hint small">
+                ล่าสุด: <code><?= h($lastErrorShort) ?></code>
+            </p>
+        <?php endif; ?>
+
+        <div class="form-actions">
+            <a class="btn ghost" href="logs.php?f=php">ดู php-error.log</a>
+            <a class="btn ghost" href="logs.php?f=php&amp;lines=500">500 บรรทัดล่าสุด</a>
+        </div>
+    <?php endif; ?>
+
+    <p class="hint small">นับจาก 500 บรรทัดล่าสุดของไฟล์เท่านั้น (ไฟล์ใหญ่อาจมีรายการเก่ากว่านั้น)</p>
 </section>
 
 <section class="card" id="files">
