@@ -49,10 +49,30 @@ function log_tail(string $file, int $lines = 200): array
     return array_slice($rows, -$lines);
 }
 
-$lines = log_tail($currentLog['file']);
 $fileExists = is_file($currentLog['file']);
 $fileSize = $fileExists ? (int) filesize($currentLog['file']) : 0;
 $fileMtime = $fileExists ? (int) filemtime($currentLog['file']) : 0;
+
+// ดาวน์โหลดไฟล์เต็ม — ชื่อไฟล์มาจาก whitelist ด้านบน ไม่รับ path จากผู้ใช้
+if (isset($_GET['download'])) {
+    if (!$fileExists) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo 'ยังไม่มีไฟล์นี้';
+        exit;
+    }
+
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . basename($currentLog['file']) . '"');
+    header('Content-Length: ' . (string) $fileSize);
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store');
+    readfile($currentLog['file']);
+    exit;
+}
+
+$lines = log_tail($currentLog['file']);
 
 // โหมดติดตามอัตโนมัติ: คืนเฉพาะข้อมูลที่ต้องอัปเดตเป็น JSON
 if (isset($_GET['ajax'])) {
@@ -86,6 +106,9 @@ page_start('บันทึก', 'logs');
                 <span class="dot-live" aria-hidden="true"></span>
                 <span id="log-live-label">ติดตามอัตโนมัติ</span>
             </button>
+        <?php endif; ?>
+        <?php if ($fileExists): ?>
+            <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=1">↓ ดาวน์โหลด</a>
         <?php endif; ?>
         <a class="btn ghost" href="logs.php?f=<?= h($current) ?>">↻ รีเฟรช</a>
     </div>
@@ -125,6 +148,11 @@ page_start('บันทึก', 'logs');
             <p>ยังไม่มีข้อความถูกบันทึก</p>
         </div>
     <?php else: ?>
+        <div class="log-tools">
+            <input class="log-filter" id="log-filter" type="search" autocomplete="off"
+                   placeholder="กรองบรรทัด… เช่น error, 404, GET" aria-label="กรองบรรทัดใน log">
+            <span class="hint small" id="log-filter-count"></span>
+        </div>
         <pre class="bootlog log-view" id="log-view" tabindex="0"><?= h(implode("\n", $lines)) ?></pre>
         <p class="hint small">
             ไฟล์: <code><?= h($currentLog['file']) ?></code>

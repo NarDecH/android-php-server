@@ -174,10 +174,55 @@
         }
     });
 
+    // ---------- log viewer: กรองบรรทัด ----------
+
+    const logView = document.getElementById('log-view');
+
+    if (logView) {
+        const filterInput = document.getElementById('log-filter');
+        const filterCount = document.getElementById('log-filter-count');
+        let fullText = logView.textContent;
+        let term = '';
+
+        const render = (stick = false) => {
+            if (!term) {
+                if (logView.textContent !== fullText) logView.textContent = fullText;
+                if (filterCount) filterCount.textContent = '';
+            } else {
+                const lines = fullText.split('\n');
+                const matched = lines.filter((line) => line.toLowerCase().includes(term));
+                logView.textContent = matched.join('\n');
+
+                if (filterCount) {
+                    filterCount.textContent = matched.length
+                        ? `${matched.length} / ${lines.length} บรรทัด`
+                        : 'ไม่พบบรรทัดที่ตรง';
+                }
+            }
+
+            if (stick) logView.scrollTop = logView.scrollHeight;
+        };
+
+        // โหมดติดตามอัตโนมัติส่งข้อความใหม่ผ่านฟังก์ชันนี้ เพื่อให้ตัวกรองยังทำงานต่อ
+        logView.logText = fullText;
+        logView.applyLogText = (text, stick = false) => {
+            fullText = text;
+            logView.logText = text;
+            render(stick);
+        };
+
+        if (filterInput) {
+            filterInput.addEventListener('input', () => {
+                term = filterInput.value.trim().toLowerCase();
+                render();
+                logView.scrollTop = 0;
+            });
+        }
+    }
+
     // ---------- log viewer: ติดตามบรรทัดใหม่ทุก 5 วินาที ----------
 
     const liveToggle = document.getElementById('log-live-toggle');
-    const logView = document.getElementById('log-view');
 
     if (liveToggle && logView) {
         const endpoint = liveToggle.getAttribute('data-endpoint') || '';
@@ -199,14 +244,13 @@
 
         const applyPayload = (data) => {
             if (!data || typeof data.text !== 'string') return;
-            if (data.text === logView.textContent) {
+            if (data.text === logView.logText) {
                 setStatus('ไม่มีบรรทัดใหม่');
                 return;
             }
 
             const stick = nearBottom();
-            logView.textContent = data.text;
-            if (stick) logView.scrollTop = logView.scrollHeight;
+            logView.applyLogText(data.text, stick);
             if (meta) meta.textContent = `${data.count} บรรทัด · ${data.size}`;
             if (mtime && data.mtime) mtime.textContent = data.mtime;
             setStatus(`อัปเดต ${new Date().toLocaleTimeString('th-TH')}`);

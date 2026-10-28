@@ -532,6 +532,36 @@ code {
     color: var(--accent);
 }
 
+.log-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0 10px;
+}
+
+.log-filter {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    background: rgba(7, 13, 25, 0.65);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.log-filter::placeholder {
+    color: var(--muted);
+}
+
+.log-filter:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+}
+
 /* ---------- QR (เปิดจากเครื่องอื่น) ---------- */
 
 .qr-grid {
