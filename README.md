@@ -25,6 +25,19 @@
 
 ---
 
+## ภาพหน้าจอ
+
+ภาพทั้งหมดถ่ายจากมือถือ Android จริงที่ความกว้างหน้าจอ 412 px (Chrome บน Xiaomi 23113RKC6G,
+Android 16 / HyperOS, PHP 8.5.12 ใน Termux จาก F-Droid)
+
+| หน้าแรก — สถานะเซิร์ฟเวอร์ | นำเข้าไฟล์ผ่านเบราว์เซอร์ |
+|---|---|
+| ![Dashboard](docs/images/dashboard.png) | ![นำเข้าไฟล์](docs/images/import.png) |
+| **หน้า PIN (เมื่อตั้ง `UPLOAD_PIN`)** | **การ์ด autostart + `boot.log`** |
+| ![หน้า PIN](docs/images/login.png) | ![การ์ด autostart](docs/images/dashboard-autostart.png) |
+
+---
+
 ## สถาปัตยกรรม
 
 ```text
