@@ -7,6 +7,10 @@
 www/files/*
 !www/files/.gitkeep
 
+# Personal pages + credentials (ห้าม commit — มี API key/secret)
+nh.php
+nh.config.php
+
 # Editors & OS
 .DS_Store
 Thumbs.db
