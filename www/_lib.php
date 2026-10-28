@@ -221,6 +221,7 @@ function page_start(string $title, string $active = ''): void
     $navItems = [
         'home' => ['index.php', 'หน้าแรก'],
         'upload' => ['upload.php', 'นำเข้าไฟล์'],
+        'settings' => ['settings.php', 'ตั้งค่า'],
     ];
     ?>
 <!doctype html>

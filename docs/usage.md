@@ -481,3 +481,62 @@ bash scripts/server.sh stop
 ```bash
 pkg update -y && pkg upgrade -y
 ```
+
+---
+
+## 14. ตั้งค่าจากหน้าเว็บ (พอร์ต / PIN)
+
+เปิด <http://127.0.0.1:8080/settings.php> หรือกดเมนู **ตั้งค่า**
+
+- แก้ **พอร์ต** (1024–65535) และ **PIN** ได้จากฟอร์ม
+- PIN ใหม่: เว้นว่าง = คงค่าเดิม, ติ๊ก "ปิด PIN" = ปิดการป้องกันทั้งเว็บ
+- ค่า `HOST` แก้ได้จากไฟล์เท่านั้น เพื่อกันการเปิดเซิร์ฟเวอร์สู่วง LAN โดยไม่ตั้งใจ
+
+เมื่อกดบันทึก ระบบจะ:
+
+1. สำรอง `config.env` ไว้ที่ `~/.php-server/config.env.bak`
+2. เขียนค่าใหม่แบบ atomic (คงคอมเมนต์และค่าอื่นไว้)
+3. รีสตาร์ตเซิร์ฟเวอร์ผ่าน `scripts/apply-settings.sh`
+4. ถ้าพอร์ตใหม่ไม่ตอบ `/healthz` ภายใน ~25 วินาที จะ **ย้อนกลับค่าเดิมให้อัตโนมัติ**
+
+ผลลัพธ์ล่าสุดแสดงบนหน้า settings และบันทึกไว้ที่:
+
+```bash
+tail -n 40 ~/.php-server/settings.log
+cat ~/.php-server/settings-result.txt
+```
+
+ถ้าย้อนกลับไม่สำเร็จ ให้สั่งเองใน Termux:
+
+```bash
+bash scripts/server.sh restart
+```
+
+> เมื่อเปลี่ยน PIN ทุก session เดิมจะใช้ไม่ได้ (ระบบผูก session กับ PIN) ต้องล็อกอินใหม่
+
+---
+
+## 15. ตรวจ secrets ก่อน push
+
+ก่อน push ขึ้น GitHub ให้ตรวจว่ามี key/secret หลุดเข้าไฟล์ไหม:
+
+```bash
+bash scripts/check-secrets.sh          # ตรวจทั้งโปรเจกต์
+bash scripts/check-secrets.sh --staged # ตรวจเฉพาะไฟล์ที่ stage ไว้
+```
+
+ติดตั้งเป็น git hook เพื่อบล็อกอัตโนมัติทุกครั้งที่ push:
+
+```bash
+bash scripts/check-secrets.sh --install
+```
+
+สคริปต์ตรวจ:
+
+- Private key block, AWS access key, GitHub/Slack/Stripe/Google token
+- ค่าที่หน้าตาเป็น `api_key`, `api_secret`, `password`, `access_token` ที่ตามด้วยค่ายาว ๆ
+- สตริง hex 64 ตัว (เช่นคีย์ 32 ไบต์)
+
+ถ้าพบ จะแสดง `ไฟล์:บรรทัด` และ **ไม่พิมพ์ค่าลับออกมา** พร้อมคืนค่า exit code 1
+
+> ไฟล์อย่าง `nh.php` และ `nh.config.php` อยู่ใน `.gitignore` แล้ว จึงไม่ถูกสแกน/commit

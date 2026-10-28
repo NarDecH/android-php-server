@@ -20,7 +20,9 @@
 - **จัดการเซิร์ฟเวอร์** ด้วย `start`, `stop`, `restart`, `status`, `logs`, `open`
 - **เปิดอัตโนมัติเมื่อบูต** ด้วย Termux:Boot (ไม่บังคับ)
 - **PIN + session** ป้องกันทั้งเว็บเมื่อเปิดให้เครื่องอื่นใน Wi-Fi เข้าถึง
+- **หน้าตั้งค่าทางเว็บ** เปลี่ยนพอร์ต/PIN ได้จากเบราว์เซอร์ พร้อมรีสตาร์ตอัตโนมัติและย้อนกลับค่าเดิมถ้าพอร์ตใหม่ไม่ขึ้น
 - **ความปลอดภัยพื้นฐาน** CSRF token, ปิด directory listing, กัน path traversal, บล็อกไฟล์ซ่อน
+- **ตรวจ secrets ก่อน push** ด้วยสคริปต์ + git hook (`scripts/check-secrets.sh`)
 - **ใช้แบบออฟไลน์ได้** หลังติดตั้งเสร็จ ไม่ต้องต่อเน็ตเพื่อรันเซิร์ฟเวอร์
 
 ---
@@ -35,6 +37,11 @@ Android 16 / HyperOS, PHP 8.5.12 ใน Termux จาก F-Droid)
 | ![Dashboard](docs/images/dashboard.png) | ![นำเข้าไฟล์](docs/images/import.png) |
 | **หน้า PIN (เมื่อตั้ง `UPLOAD_PIN`)** | **การ์ด autostart + `boot.log`** |
 | ![หน้า PIN](docs/images/login.png) | ![การ์ด autostart](docs/images/dashboard-autostart.png) |
+
+**หน้าตั้งค่า** — เปลี่ยนพอร์ต/PIN ได้จากเบราว์เซอร์ ระบบรีสตาร์ตให้อัตโนมัติ
+และย้อนกลับค่าเดิมถ้าพอร์ตใหม่ไม่ตอบสนอง
+
+![หน้าตั้งค่า](docs/images/settings.png)
 
 ---
 
