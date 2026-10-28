@@ -20,7 +20,33 @@ $currentLog = $logs[$current];
 $lineOptions = [200, 500, 1000];
 $requestedLines = (int) ($_GET['lines'] ?? 200);
 $lineLimit = in_array($requestedLines, $lineOptions, true) ? $requestedLines : 200;
+$sinceOptions = [15 => '15 นาที', 60 => '1 ชม.', 1440 => '24 ชม.'];
+$requestedSince = (int) ($_GET['since'] ?? 0);
+$sinceMinutes = array_key_exists($requestedSince, $sinceOptions) ? $requestedSince : 0;
 $csrf = csrf_token();
+
+/**
+ * สร้าง URL ของหน้านี้โดยคงค่า f/lines/since
+ *
+ * @param array<string, string> $extra
+ */
+function logs_url(string $file, int $lines, int $since, array $extra = []): string
+{
+    $params = ['f' => $file];
+
+    if ($lines !== 200) {
+        $params['lines'] = (string) $lines;
+    }
+    if ($since > 0) {
+        $params['since'] = (string) $since;
+    }
+
+    foreach ($extra as $key => $value) {
+        $params[$key] = $value;
+    }
+
+    return 'logs.php?' . http_build_query($params);
+}
 
 /**
  * อ่านบรรทัดท้าย ๆ ของไฟล์ โดยไม่โหลดทั้งไฟล์ถ้าใหญ่เกิน 512 KB
@@ -52,6 +78,63 @@ function log_tail(string $file, int $lines = 200): array
     $rows = array_values(array_filter($rows, static fn (string $row): bool => trim($row) !== ''));
 
     return array_slice($rows, -$lines);
+}
+
+/**
+ * อ่านเวลา (epoch) จากบรรทัด log รูปแบบที่โปรเจกต์ใช้
+ */
+function log_line_timestamp(string $line): ?int
+{
+    $months = [
+        'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5, 'Jun' => 6,
+        'Jul' => 7, 'Aug' => 8, 'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12,
+    ];
+
+    // [Wed Oct 28 14:01:16 2026] — server.log มี [pid] นำหน้า
+    if (preg_match('/\[[A-Z][a-z]{2} ([A-Z][a-z]{2}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})\]/', $line, $m) === 1
+        && isset($months[$m[1]])) {
+        return mktime((int) $m[3], (int) $m[4], (int) $m[5], $months[$m[1]], (int) $m[2], (int) $m[6]) ?: null;
+    }
+
+    // [28-Oct-2026 10:23:52 Asia/Bangkok]
+    if (preg_match('/\[(\d{1,2})-([A-Z][a-z]{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/', $line, $m) === 1
+        && isset($months[$m[2]])) {
+        return mktime((int) $m[4], (int) $m[5], (int) $m[6], $months[$m[2]], (int) $m[1], (int) $m[3]) ?: null;
+    }
+
+    // [2026-10-28 14:00:00]
+    if (preg_match('/\[(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\]/', $line, $m) === 1) {
+        return mktime((int) $m[4], (int) $m[5], (int) $m[6], (int) $m[2], (int) $m[3], (int) $m[1]) ?: null;
+    }
+
+    return null;
+}
+
+/**
+ * เก็บเฉพาะบรรทัดในช่วงเวลาที่กำหนด (บรรทัดต่อเนื่องที่ไม่มีเวลาใช้ค่าของบรรทัดก่อน)
+ *
+ * @param array<int, string> $lines
+ * @return array<int, string>
+ */
+function log_lines_since(array $lines, int $seconds): array
+{
+    $cutoff = time() - $seconds;
+    $kept = [];
+    $inRange = false;
+
+    foreach ($lines as $line) {
+        $timestamp = log_line_timestamp($line);
+
+        if ($timestamp !== null) {
+            $inRange = $timestamp >= $cutoff;
+        }
+
+        if ($inRange) {
+            $kept[] = $line;
+        }
+    }
+
+    return $kept;
 }
 
 /**
@@ -201,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear
         }
     }
 
-    redirect_to('logs.php?f=' . $current . ($lineLimit === 200 ? '' : '&lines=' . $lineLimit));
+    redirect_to(logs_url($current, $lineLimit, $sinceMinutes));
 }
 
 // ดาวน์โหลด log ทั้ง 4 ไฟล์เป็น ZIP เดียว
@@ -246,6 +329,10 @@ if (isset($_GET['download'])) {
 
 $lines = log_tail($currentLog['file'], $lineLimit);
 
+if ($sinceMinutes > 0) {
+    $lines = log_lines_since($lines, $sinceMinutes * 60);
+}
+
 // โหมดติดตามอัตโนมัติ: คืนเฉพาะข้อมูลที่ต้องอัปเดตเป็น JSON
 if (isset($_GET['ajax'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -270,18 +357,23 @@ page_start('บันทึก', 'logs');
     <div>
         <p class="eyebrow">LOGS</p>
         <h1>บันทึกของเซิร์ฟเวอร์</h1>
-        <p class="sub">ดู <?= h((string) $lineLimit) ?> บรรทัดล่าสุดของแต่ละไฟล์ได้จากมือถือ ไม่ต้องเข้า Termux</p>
+        <p class="sub">
+            ดู <?= h((string) $lineLimit) ?> บรรทัดล่าสุดของแต่ละไฟล์ได้จากมือถือ ไม่ต้องเข้า Termux
+            <?php if ($sinceMinutes > 0): ?>
+                · เฉพาะ <?= h($sinceOptions[$sinceMinutes]) ?>ล่าสุด
+            <?php endif; ?>
+        </p>
     </div>
     <div class="head-actions">
         <?php if ($fileExists && $lines): ?>
             <button class="btn ghost log-live" type="button" id="log-live-toggle" aria-pressed="false"
-                    data-endpoint="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>&amp;ajax=1" data-interval="5000">
+                    data-endpoint="<?= h(logs_url($current, $lineLimit, $sinceMinutes, ['ajax' => '1'])) ?>" data-interval="5000">
                 <span class="dot-live" aria-hidden="true"></span>
                 <span id="log-live-label">ติดตามอัตโนมัติ</span>
             </button>
         <?php endif; ?>
         <?php if ($fileExists): ?>
-            <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=1">↓ ดาวน์โหลด</a>
+            <a class="btn ghost" href="<?= h(logs_url($current, 200, 0, ['download' => '1'])) ?>">↓ ดาวน์โหลด</a>
         <?php endif; ?>
         <?php
         $anyLogFile = false;
@@ -293,12 +385,12 @@ page_start('บันทึก', 'logs');
         }
         ?>
         <?php if ($anyLogFile): ?>
-            <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=all">↓ ทั้งหมด (.zip)</a>
+            <a class="btn ghost" href="<?= h(logs_url($current, 200, 0, ['download' => 'all'])) ?>">↓ ทั้งหมด (.zip)</a>
         <?php endif; ?>
-        <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>">↻ รีเฟรช</a>
+        <a class="btn ghost" href="<?= h(logs_url($current, $lineLimit, $sinceMinutes)) ?>">↻ รีเฟรช</a>
         <?php if ($fileExists && $lines): ?>
             <form class="inline-form" method="post"
-                  action="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>"
+                  action="<?= h(logs_url($current, $lineLimit, $sinceMinutes)) ?>"
                   data-confirm="ล้างไฟล์ <?= h(basename($currentLog['file'])) ?> ทั้งหมด? การกระทำนี้ย้อนกลับไม่ได้">
                 <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
                 <input type="hidden" name="action" value="clear">
@@ -338,18 +430,31 @@ page_start('บันทึก', 'logs');
         </div>
     <?php elseif (!$lines): ?>
         <div class="empty">
-            <strong>ไฟล์ว่าง</strong>
-            <p>ยังไม่มีข้อความถูกบันทึก</p>
+            <strong><?= $sinceMinutes > 0 ? 'ไม่พบบรรทัดในช่วงเวลานี้' : 'ไฟล์ว่าง' ?></strong>
+            <p>
+                <?= $sinceMinutes > 0
+                    ? 'ลองเลือกช่วงเวลาที่กว้างขึ้น หรือเพิ่มจำนวนบรรทัด'
+                    : 'ยังไม่มีข้อความถูกบันทึก' ?>
+            </p>
         </div>
     <?php else: ?>
         <div class="log-tools">
             <input class="log-filter" id="log-filter" type="search" autocomplete="off"
                    placeholder="กรองบรรทัด… เช่น error, 404, GET" aria-label="กรองบรรทัดใน log">
+            <button class="btn tiny ghost" type="button" id="log-copy">คัดลอก</button>
             <span class="hint small" id="log-filter-count"></span>
+            <div class="log-range" role="group" aria-label="ช่วงเวลาของ log">
+                <a class="chip<?= $sinceMinutes === 0 ? ' active' : '' ?>"
+                   href="<?= h(logs_url($current, $lineLimit, 0)) ?>">ทั้งหมด</a>
+                <?php foreach ($sinceOptions as $minutes => $label): ?>
+                    <a class="chip<?= $minutes === $sinceMinutes ? ' active' : '' ?>"
+                       href="<?= h(logs_url($current, $lineLimit, $minutes)) ?>"><?= h($label) ?></a>
+                <?php endforeach; ?>
+            </div>
             <div class="log-lines" role="group" aria-label="จำนวนบรรทัดที่แสดง">
                 <?php foreach ($lineOptions as $option): ?>
                     <a class="chip<?= $option === $lineLimit ? ' active' : '' ?>"
-                       href="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $option) ?>"><?= h((string) $option) ?></a>
+                       href="<?= h(logs_url($current, $option, $sinceMinutes)) ?>"><?= h((string) $option) ?></a>
                 <?php endforeach; ?>
             </div>
         </div>

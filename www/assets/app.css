@@ -606,9 +606,14 @@ code {
     box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
 }
 
-.log-lines {
+.log-lines,
+.log-range {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 4px;
+}
+
+.log-lines {
     margin-left: auto;
 }
 

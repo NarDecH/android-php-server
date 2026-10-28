@@ -218,6 +218,44 @@
                 logView.scrollTop = 0;
             });
         }
+
+        // คัดลอกข้อความที่แสดงอยู่ (หลังกรอง) ไปยังคลิปบอร์ด
+        const copyButton = document.getElementById('log-copy');
+
+        if (copyButton) {
+            const resetLabel = () => {
+                copyButton.textContent = 'คัดลอก';
+            };
+
+            copyButton.addEventListener('click', async () => {
+                const text = logView.textContent;
+
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        // http:// บน LAN ไม่ใช่ secure context — ใช้ textarea ชั่วคราวแทน
+                        const area = document.createElement('textarea');
+                        area.value = text;
+                        area.setAttribute('readonly', '');
+                        area.style.position = 'fixed';
+                        area.style.opacity = '0';
+                        document.body.appendChild(area);
+                        area.select();
+                        const copied = document.execCommand('copy');
+                        document.body.removeChild(area);
+
+                        if (!copied) throw new Error('copy failed');
+                    }
+
+                    copyButton.textContent = 'คัดลอกแล้ว ✓';
+                } catch (error) {
+                    copyButton.textContent = 'คัดลอกไม่ได้';
+                }
+
+                window.setTimeout(resetLabel, 2000);
+            });
+        }
     }
 
     // ---------- log viewer: ติดตามบรรทัดใหม่ทุก 5 วินาที ----------
