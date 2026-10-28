@@ -306,6 +306,11 @@ code {
     transform: none;
 }
 
+.inline-form {
+    display: inline-flex;
+    margin: 0;
+}
+
 /* ---------- layout & cards ---------- */
 
 .grid {
@@ -560,6 +565,33 @@ code {
 .log-filter:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+}
+
+.log-lines {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.chip {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.chip:hover {
+    color: var(--text);
+    border-color: #31517d;
+}
+
+.chip.active {
+    border-color: rgba(52, 211, 153, 0.4);
+    background: rgba(52, 211, 153, 0.08);
+    color: var(--accent);
 }
 
 /* ---------- QR (เปิดจากเครื่องอื่น) ---------- */

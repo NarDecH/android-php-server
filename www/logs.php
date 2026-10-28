@@ -17,6 +17,11 @@ $requested = (string) ($_GET['f'] ?? 'server');
 $current = array_key_exists($requested, $logs) ? $requested : 'server';
 $currentLog = $logs[$current];
 
+$lineOptions = [200, 500, 1000];
+$requestedLines = (int) ($_GET['lines'] ?? 200);
+$lineLimit = in_array($requestedLines, $lineOptions, true) ? $requestedLines : 200;
+$csrf = csrf_token();
+
 /**
  * อ่านบรรทัดท้าย ๆ ของไฟล์ โดยไม่โหลดทั้งไฟล์ถ้าใหญ่เกิน 512 KB
  *
@@ -53,6 +58,28 @@ $fileExists = is_file($currentLog['file']);
 $fileSize = $fileExists ? (int) filesize($currentLog['file']) : 0;
 $fileMtime = $fileExists ? (int) filemtime($currentLog['file']) : 0;
 
+// ล้างไฟล์ (เฉพาะชื่อไฟล์ใน whitelist) — ต้องมี CSRF และเซิร์ฟเวอร์เปิด log แบบ append
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear') {
+    if (!csrf_is_valid($_POST['csrf_token'] ?? null)) {
+        flash_set('error', 'CSRF token ไม่ถูกต้อง — รีเฟรชหน้าแล้วลองใหม่');
+    } elseif (!$fileExists) {
+        flash_set('warning', 'ยังไม่มีไฟล์นี้ให้ล้าง');
+    } elseif (!is_writable($currentLog['file'])) {
+        flash_set('error', 'ไม่มีสิทธิ์เขียนไฟล์นี้');
+    } else {
+        $handle = @fopen($currentLog['file'], 'wb');
+
+        if ($handle === false) {
+            flash_set('error', 'ล้างไฟล์ไม่สำเร็จ');
+        } else {
+            fclose($handle);
+            flash_set('success', 'ล้าง ' . basename($currentLog['file']) . ' แล้ว');
+        }
+    }
+
+    redirect_to('logs.php?f=' . $current . ($lineLimit === 200 ? '' : '&lines=' . $lineLimit));
+}
+
 // ดาวน์โหลดไฟล์เต็ม — ชื่อไฟล์มาจาก whitelist ด้านบน ไม่รับ path จากผู้ใช้
 if (isset($_GET['download'])) {
     if (!$fileExists) {
@@ -72,7 +99,7 @@ if (isset($_GET['download'])) {
     exit;
 }
 
-$lines = log_tail($currentLog['file']);
+$lines = log_tail($currentLog['file'], $lineLimit);
 
 // โหมดติดตามอัตโนมัติ: คืนเฉพาะข้อมูลที่ต้องอัปเดตเป็น JSON
 if (isset($_GET['ajax'])) {
@@ -93,16 +120,17 @@ if (isset($_GET['ajax'])) {
 
 page_start('บันทึก', 'logs');
 ?>
+<?php render_flashes(); ?>
 <div class="page-head">
     <div>
         <p class="eyebrow">LOGS</p>
         <h1>บันทึกของเซิร์ฟเวอร์</h1>
-        <p class="sub">ดู 200 บรรทัดล่าสุดของแต่ละไฟล์ได้จากมือถือ ไม่ต้องเข้า Termux</p>
+        <p class="sub">ดู <?= h((string) $lineLimit) ?> บรรทัดล่าสุดของแต่ละไฟล์ได้จากมือถือ ไม่ต้องเข้า Termux</p>
     </div>
     <div class="head-actions">
         <?php if ($fileExists && $lines): ?>
             <button class="btn ghost log-live" type="button" id="log-live-toggle" aria-pressed="false"
-                    data-endpoint="logs.php?f=<?= h($current) ?>&amp;ajax=1" data-interval="5000">
+                    data-endpoint="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>&amp;ajax=1" data-interval="5000">
                 <span class="dot-live" aria-hidden="true"></span>
                 <span id="log-live-label">ติดตามอัตโนมัติ</span>
             </button>
@@ -110,7 +138,16 @@ page_start('บันทึก', 'logs');
         <?php if ($fileExists): ?>
             <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;download=1">↓ ดาวน์โหลด</a>
         <?php endif; ?>
-        <a class="btn ghost" href="logs.php?f=<?= h($current) ?>">↻ รีเฟรช</a>
+        <a class="btn ghost" href="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>">↻ รีเฟรช</a>
+        <?php if ($fileExists && $lines): ?>
+            <form class="inline-form" method="post"
+                  action="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $lineLimit) ?>"
+                  data-confirm="ล้างไฟล์ <?= h(basename($currentLog['file'])) ?> ทั้งหมด? การกระทำนี้ย้อนกลับไม่ได้">
+                <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+                <input type="hidden" name="action" value="clear">
+                <button class="btn danger" type="submit">ล้างไฟล์</button>
+            </form>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -152,6 +189,12 @@ page_start('บันทึก', 'logs');
             <input class="log-filter" id="log-filter" type="search" autocomplete="off"
                    placeholder="กรองบรรทัด… เช่น error, 404, GET" aria-label="กรองบรรทัดใน log">
             <span class="hint small" id="log-filter-count"></span>
+            <div class="log-lines" role="group" aria-label="จำนวนบรรทัดที่แสดง">
+                <?php foreach ($lineOptions as $option): ?>
+                    <a class="chip<?= $option === $lineLimit ? ' active' : '' ?>"
+                       href="logs.php?f=<?= h($current) ?>&amp;lines=<?= h((string) $option) ?>"><?= h((string) $option) ?></a>
+                <?php endforeach; ?>
+            </div>
         </div>
         <pre class="bootlog log-view" id="log-view" tabindex="0"><?= h(implode("\n", $lines)) ?></pre>
         <p class="hint small">
