@@ -159,9 +159,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $hostRaw = (string) ($_POST['host'] ?? $currentHost);
+    $newHost = in_array($hostRaw, ['127.0.0.1', '0.0.0.0'], true) ? $hostRaw : $currentHost;
+
+    if ($newHost === '0.0.0.0' && $newPin === '') {
+        $errors[] = 'เปิดโหมด LAN (0.0.0.0) ไม่ได้ถ้าไม่มี PIN — ตั้ง PIN ก่อน';
+    }
+
     if (!$errors) {
         $changes = [];
 
+        if ($newHost !== $currentHost) {
+            $changes['HOST'] = $newHost;
+        }
         if ($newPort !== $currentPort) {
             $changes['PORT'] = (string) $newPort;
         }
@@ -286,7 +296,7 @@ page_start('ตั้งค่า', 'settings');
             </div>
         </dl>
         <p class="hint small">
-            ค่า <code>HOST</code> ยังแก้ได้จากไฟล์เท่านั้น เพื่อกันการเปิดเซิร์ฟเวอร์สู่วง LAN โดยไม่ตั้งใจ
+            โหมด LAN เปิดได้เฉพาะเมื่อมี PIN เพื่อไม่ให้ใครในวง Wi-Fi เข้าไฟล์ได้โดยไม่ต้องล็อกอิน
         </p>
     </section>
 
@@ -298,6 +308,12 @@ page_start('ตั้งค่า', 'settings');
         <form class="auth-form settings-form" method="post" action="settings.php">
             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
             <input type="hidden" name="action" value="save">
+
+            <label for="host">การเข้าถึง</label>
+            <select id="host" name="host">
+                <option value="127.0.0.1"<?= $currentHost === '127.0.0.1' ? ' selected' : '' ?>>เฉพาะเครื่องนี้ (127.0.0.1)</option>
+                <option value="0.0.0.0"<?= $currentHost === '0.0.0.0' ? ' selected' : '' ?>>ให้เครื่องอื่นใน Wi-Fi เข้าถึง (0.0.0.0)</option>
+            </select>
 
             <label for="port">พอร์ต (1024–65535)</label>
             <input id="port" name="port" type="text" inputmode="numeric" pattern="[0-9]{1,5}"
